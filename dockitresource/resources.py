@@ -1,6 +1,8 @@
-from hyperadmin.resources.crud.resources import CRUDResource
+from hyperadmin.resources.crud.crud import CRUDResource
 from dockit import forms
+
 from dockitresource import views
+from dockitresource.changelist import DocumentChangeList
 
 class DocumentResource(CRUDResource):
     #TODO support the following:
@@ -18,8 +20,7 @@ class DocumentResource(CRUDResource):
     
     #save_as = False
     #save_on_top = False
-    #changelist_class = ModelChangeList
-    inlines = []
+    changelist_class = DocumentChangeList
     
     #list display options
     list_display_links = ()
@@ -57,12 +58,11 @@ class DocumentResource(CRUDResource):
     
     def get_view_kwargs(self):
         kwargs = super(DocumentResource, self).get_view_kwargs()
-        kwargs['document'] = self.model
+        kwargs['document'] = self.document
         return kwargs
     
     def get_active_index(self, **kwargs):
         return self.get_queryset(user=self.state['auth'])
-
     
     def lookup_allowed(self, lookup, value):
         return True #TODO
@@ -85,4 +85,11 @@ class DocumentResource(CRUDResource):
                 #TODO formfield overides
                 #TODO fields
         return AdminForm
+    
+    def get_html_type_from_field(self, field):
+        from dockit.forms import widgets
+        widget = field.field.widget
+        if isinstance(widget, widgets.PrimitiveListWidget):
+            return 'list'
+        return super(DocumentResource, self).get_html_type_from_field(field)
 
