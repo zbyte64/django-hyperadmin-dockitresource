@@ -72,9 +72,36 @@ class DocumentResource(CRUDResource):
         if not self.has_change_permission(user):
             queryset = queryset.none()
         return queryset
-        
-    def get_exclude(self):
-        return self.exclude or []
+    
+    def _get_schema_fields(self):
+        for field in self.opts.fields.itervalues():
+            if getattr(field, 'schema', None):
+                yield (field, field.schema, False)
+            elif getattr(field, 'subfield', None) and getattr(field.subfield, 'schema', None):
+                yield (field, field.subfield.schema, True)
+    
+    def _get_static_schema_fields(self):
+        fields = list()
+        for field, schema, many in self._get_schema_fields():
+            if not schema._meta.is_dynamic():
+                fields.append((field, schema, many))
+        return fields
+    
+    def _get_noncomplex_fields(self):
+        from dockit import schema
+        #list fields of "primitives" are not considered complex enough
+        for field in self.opts.fields.itervalues():
+            if isinstance(field, schema.SchemaField) or isinstance(field, schema.GenericSchemaField):
+                yield field
+            elif isinstance(field, schema.ListField):
+                if getattr(field.subfield, 'schema', None) or isinstance(field.subfield, schema.GenericSchemaField):
+                    yield field
+    
+    def get_excludes(self):
+        excludes = set(self.exclude)
+        for field in self._get_noncomplex_fields():
+            excludes.add(field.name)
+        return list(excludes)
     
     def get_form_class(self):
         if self.form_class:
@@ -82,6 +109,7 @@ class DocumentResource(CRUDResource):
         class AdminForm(forms.DocumentForm):
             class Meta:
                 document = self.document
+                exclude = self.get_excludes()
                 #TODO formfield overides
                 #TODO fields
         return AdminForm
