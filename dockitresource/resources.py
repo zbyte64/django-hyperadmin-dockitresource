@@ -1,3 +1,5 @@
+from django.conf.urls.defaults import patterns, url, include
+
 from hyperadmin.resources.crud.crud import CRUDResource
 from hyperadmin.hyperobjects import Link
 
@@ -8,7 +10,7 @@ from dockitresource import views
 from dockitresource.changelist import DocumentChangeList
 from dockitresource.hyperobjects import DotpathState, DotpathNamespace
 
-class DocumentResource(CRUDResource):
+class BaseDocumentResource(CRUDResource):
     state_class = DotpathState
     #TODO support the following:
     #raw_id_fields = ()
@@ -112,7 +114,7 @@ class DocumentResource(CRUDResource):
         return self.resource_name
     
     def get_view_kwargs(self):
-        kwargs = super(DocumentResource, self).get_view_kwargs()
+        kwargs = super(BaseDocumentResource, self).get_view_kwargs()
         kwargs['document'] = self.document
         return kwargs
     
@@ -180,27 +182,56 @@ class DocumentResource(CRUDResource):
         widget = field.field.widget
         if isinstance(widget, widgets.PrimitiveListWidget):
             return 'list'
-        return super(DocumentResource, self).get_html_type_from_field(field)
+        return super(BaseDocumentResource, self).get_html_type_from_field(field)
+    
+    def get_namespaces(self):
+        namespaces = super(BaseDocumentResource, self).get_namespaces()
+        if self.state.item is not None and self.state.get('view_class', None) == 'change_form':
+            item = self.state.item
+            
+            for field in self._get_complex_fields():
+                name = 'inline-%s' % field.name
+                inline = self.fork_state()
+                if self.state.dotpath:
+                    dotpath = self.state.dotpath+'.'+field.name
+                else:
+                    dotpath = field.name
+                print dotpath
+                inline.state.dotpath =  dotpath #our state class recognizes this variable
+                link = inline.get_item_link(item, url=inline.get_item_url(item)+inline.state.get_query_string())
+                namespace = DotpathNamespace(name=name, link=link, state=inline.state)
+                namespaces[name] = namespace
+            
+            print namespaces
+        return namespaces
     
     def get_item_namespaces(self, item):
-        namespaces = super(DocumentResource, self).get_item_namespaces(item)
+        namespaces = super(BaseDocumentResource, self).get_item_namespaces(item)
+        print namespaces
         
         for field in self._get_complex_fields():
             name = 'inline-%s' % field.name
             inline = self.fork_state()
-            inline.dotpath = self.state.dotpath+'.'+field.name #our state class recognizes this variable
+            if self.state.dotpath:
+                dotpath = self.state.dotpath+'.'+field.name
+            else:
+                dotpath = field.name
+            inline.state.dotpath =  dotpath #our state class recognizes this variable
             link = inline.get_item_link(item, url=inline.get_item_url(item)+inline.state.get_query_string())
             namespace = DotpathNamespace(name=name, link=link, state=inline.state)
             namespaces[name] = namespace
+        print namespaces
         return namespaces
     
     #TODO delete with dotpaths
 
-class TemporaryDocumentResource(DocumentResource):
+class TemporaryDocumentResource(BaseDocumentResource):
     '''
     create new documents and copy existing documents in the temporary collection
     once your changes are done the changes can be committed
     '''
+    copy_form_class = None
+    
     @property
     def temp_document(self):
         from dockit.models import create_temporary_document_class
@@ -230,15 +261,18 @@ class TemporaryDocumentResource(DocumentResource):
             queryset = queryset.none()
         return queryset
     
+    def get_base_url_name(self):
+        return '%s_%s_%s_' % (self.parent.app_name, self.parent.resource_name, 'tempdoc')
+    
     #TODO create may make a copy of an existing document or start a new one
     def get_copy_url(self):
-        return self.reverse('%s_%s_copy' % (self.app_name, self.resource_name))
+        return self.reverse('%scopy' % self.get_base_url_name())
     
     def get_commit_url(self, item):
-        return self.reverse('%s_%s_commit' % (self.app_name, self.resource_name), pk=item.instance.pk)
+        return self.reverse('%scommit' % self.get_base_url_name(), pk=item.instance.pk)
     
     def get_copy_form_class(self):
-        return self.get_form_class()
+        return self.copy_form_class
     
     def get_copy_form_kwargs(self, item, **form_kwargs):
         form_kwargs['instance'] = item.instance
@@ -286,4 +320,26 @@ class TemporaryDocumentResource(DocumentResource):
             resource_item = self.get_resource_item(instance)
             return self.get_item_link(resource_item)
         return link.clone(form=form)
+
+class DocumentResource(BaseDocumentResource):
+    temporary_document_resoure_class = TemporaryDocumentResource
+    
+    def __init__(self, *args, **kwargs):
+        super(DocumentResource, self).__init__(*args, **kwargs)
+        self.temporary_document_resource = self.create_temporary_document_resource()
+    
+    def create_temporary_document_resource(self):
+        cls = self.get_temporary_document_resource_class()
+        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent_resource=self)
+    
+    def get_temporary_document_resource_class(self):
+        return self.temporary_document_resoure_class
+    
+    def get_extra_urls(self):
+        urlpatterns = super(DocumentResource, self).get_extra_urls()
+        urlpatterns += patterns('',
+            url(r'^tempdoc/',
+                include(self.temporary_document_resource.urls)),
+        )
+        return urlpatterns
 
