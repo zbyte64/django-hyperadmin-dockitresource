@@ -6,7 +6,7 @@ from dockit.schema import Schema
 
 from dockitresource import views
 from dockitresource.changelist import DocumentChangeList
-from dockitresource.hyberobjects import DotpathState, DotpathNamespace
+from dockitresource.hyperobjects import DotpathState, DotpathNamespace
 
 class DocumentResource(CRUDResource):
     state_class = DotpathState
