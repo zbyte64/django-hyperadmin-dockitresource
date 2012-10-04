@@ -4,14 +4,12 @@ from hyperadmin.resources.crud.crud import CRUDResource
 from hyperadmin.hyperobjects import Link
 
 from dockit import forms
-from dockit.schema import Schema
 
 from dockitresource import views
-from dockitresource.changelist import DocumentChangeList
-from dockitresource.hyperobjects import DotpathState, DotpathNamespace, DotpathResourceItem
+from dockitresource.changelist import DocumentChangeList, DotpathChangeList
+from dockitresource.hyperobjects import DotpathState, DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
 
 class DocumentResourceMixin(object):
-    state_class = DotpathState
     dotpath_resource = None
     
     @property
@@ -76,45 +74,24 @@ class DocumentResourceMixin(object):
             return False
         return True
     
-    def get_namespaces(self):
-        namespaces = super(DocumentResourceMixin, self).get_namespaces()
-        if self.dotpath_resource and self.state.item is not None and self.state.get('view_class', None) == 'change_form':
+    def get_item_namespaces(self, item):
+        namespaces = super(DocumentResourceMixin, self).get_item_namespaces(item)
+        if self.dotpath_resource:
+            base_dotpath = getattr(self.state, 'dotpath', '')
             for field in self._get_complex_fields():
                 if not self.namespace_supports_field(field):
                     continue
                 name = 'inline-%s' % field.name
-                if self.state.dotpath:
-                    dotpath = self.state.dotpath+'.'+field.name
+                if base_dotpath:
+                    dotpath = base_dotpath+'.'+field.name
                 else:
                     dotpath = field.name
-                inline = self.dotpath_resource.fork_state(dotpath=dotpath)
-                item = inline.get_resource_item(self.state.item.instance)
-                inline.state.item = item
-                if inline.is_listing:
-                    inline.state['view_class'] = 'change_list'
-                #print dotpath, inline.get_item_url(item), inline.state.get_resource_items()[0].get_absolute_url()
-                link = inline.get_item_link(item, url=inline.get_item_url(item))
+                inline = self.dotpath_resource.fork_state(dotpath=dotpath, parent=item)
+                subitem = inline.get_resource_item(item.instance, dotpath=dotpath)
+                link = inline.get_item_link(subitem)
                 namespace = DotpathNamespace(name=name, link=link, state=inline.state)
                 namespaces[name] = namespace
             
-        return namespaces
-    
-    def get_item_namespaces(self, item):
-        namespaces = super(DocumentResourceMixin, self).get_item_namespaces(item)
-        print namespaces
-        
-        for field in self._get_complex_fields():
-            name = 'inline-%s' % field.name
-            inline = self.fork_state()
-            if self.state.dotpath:
-                dotpath = self.state.dotpath+'.'+field.name
-            else:
-                dotpath = field.name
-            inline.state.dotpath =  dotpath #our state class recognizes this variable
-            link = inline.get_item_link(item, url=inline.get_item_url(item)+inline.state.get_query_string())
-            namespace = DotpathNamespace(name=name, link=link, state=inline.state)
-            namespaces[name] = namespace
-        print namespaces
         return namespaces
     
     def get_queryset(self, user):
@@ -124,13 +101,15 @@ class DocumentResourceMixin(object):
         return queryset
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
-    changelist_class = DocumentChangeList
+    state_class = DotpathState
+    changelist_class = DotpathChangeList
     resource_item_class = DotpathResourceItem
+    list_resource_item_class = DotpathListResourceItem
     
-    list_view = views.DocumentListView
-    add_view = views.DocumentCreateView #TODO this is to append to a dotpath
-    detail_view = views.DocumentDetailView #TODO this needs to double as a list view
-    delete_view = views.DocumentDeleteView #TODO this needs to unlink the dotpath
+    list_view = views.DotpathListView
+    add_view = views.DotpathCreateView #TODO this is to append to a dotpath
+    detail_view = views.DotpathDetailView #TODO this needs to double as a list view
+    delete_view = views.DotpathDeleteView #TODO this needs to unlink the dotpath
     
     def get_base_url_name(self):
         return '%s%s_' % (self.parent.get_base_url_name(), 'dotpath')
@@ -158,55 +137,57 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return urlpatterns
     
     def get_add_url(self):
-        return self.reverse('%sadd' % self.get_base_url_name(), dotpath=self.state.dotpath)
+        item = self.state['parent']
+        return self.reverse('%sadd' % self.get_base_url_name(), pk=item.instance.pk, dotpath=self.state.dotpath)
     
     def get_delete_url(self, item):
-        return self.reverse('%sdelete' % self.get_base_url_name(), pk=item.instance.pk, dotpath=self.state.dotpath)
+        return self.reverse('%sdelete' % self.get_base_url_name(), pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
     
     def get_item_url(self, item):
-        return self.reverse('%sdetail' % self.get_base_url_name(), pk=item.instance.pk, dotpath=self.state.dotpath)
+        return self.reverse('%sdetail' % self.get_base_url_name(), pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
     
     def get_absolute_url(self):
         if self.state.item:
-            return self.get_item_url(self.state.item)
+            return self.state.item.get_absolute_url()
         return None
     
-    def get_field(self, schema, dotpath):
-        field = None
-        if dotpath and self.state.item:
-            obj = self.state.item.instance
-            field = obj.dot_notation_to_field(dotpath)
-            if field is None:
-                parent_path = dotpath.rsplit('.', 1)[0]
-                print 'no field', dotpath, obj
-                
-                from dockit.schema.common import DotPathTraverser
-                traverser = DotPathTraverser(parent_path)
-                traverser.resolve_for_instance(obj)
-                info = traverser.resolved_paths
-                subschema = info[2]['field'].schema
-                fields = subschema._meta.fields
-                
-                field = obj.dot_notation_to_field(parent_path)
-                data = obj._primitive_data
-                assert field
-        return field
+    def get_create_link(self, item, form_kwargs=None, **kwargs):
+        if form_kwargs is None:
+            form_kwargs = {}
+        form_kwargs = self.get_form_kwargs(item, **form_kwargs)
+        return super(DotpathResource, self).get_create_link(form_kwargs, **kwargs)
+    
+    def handle_create_submission(self, link, submit_kwargs):
+        form = link.get_form(**submit_kwargs)
+        if form.is_valid():
+            instance = form.save()
+            resource_item = self.get_resource_item(instance, dotpath=self.state.dotpath)
+            return self.get_item_link(resource_item)
+        return link.clone(form=form)
+    
+    def handle_update_submission(self, link, submit_kwargs):
+        form = link.get_form(**submit_kwargs)
+        if form.is_valid():
+            instance = form.save()
+            resource_item = self.get_resource_item(instance, dotpath=self.state.dotpath)
+            #or send the update link?
+            return self.get_item_link(resource_item)
+        return link.clone(form=form)
+    
+    def handle_delete_submission(self, link, submit_kwargs):
+        #TODO this doesn't work
+        instance = self.state.item.instance
+        instance.delete()
+        return self.get_resource_link()
     
     def get_item_prompt(self, item):
-        obj = self.get_active_object()
-        return unicode(obj)
-    
-    def get_active_object(self):
-        if self.state.dotpath:
-            val = self.state.item.instance
-            return val.dot_notation_to_value(self.state.dotpath)
-        return self.state.item.instance
+        return unicode(self.state.subobject)
     
     def get_resource_items(self):
         dotpath = self.state.dotpath
-        item = self.state.item
-        if self.is_listing:
-            instances = self.get_active_object()
+        item = self.state.parent
+        if self.state.is_sublisting:
+            instances = self.state.subobject
             if self.state.get('view_class', None) == 'change_list':
                 return [self.get_list_resource_item(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
             return [self.get_resource_item(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
@@ -221,38 +202,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         '''
         Retrieves the currently active schema, taking into account dynamic typing
         '''
-        schema = None
-        
-        if self.state.dotpath:
-            field = self.get_field(self.document, self.state.dotpath)
-            if getattr(field, 'subfield', None):
-                field = field.subfield
-            if getattr(field, 'schema', None):
-                schema = field.schema
-                if schema._meta.typed_field:
-                    typed_field = schema._meta.fields[schema._meta.typed_field]
-                    if self.state.params.get(schema._meta.typed_field, False):
-                        key = self.state.params[schema._meta.typed_field]
-                        schema = typed_field.schemas[key]
-                    else:
-                        obj = self.get_active_object()
-                        if obj is not None and isinstance(obj, Schema):
-                            schema = type(obj)
-            else:
-                #too generic?
-                assert False
-        else:
-            schema = self.document
-        assert issubclass(schema, Schema)
-        return schema
-    
-    @property
-    def is_listing(self):
-        from dockit import schema
-        if not self.state.dotpath:
-            return False
-        field = self.get_field(self.document, self.state.dotpath)
-        return isinstance(field, schema.ListField)
+        return self.state.schema
     
     def get_excludes(self):
         excludes = set()
@@ -260,25 +210,44 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             excludes.add(field.name)
         return list(excludes)
     
-    def get_form_class(self):
+    def get_list_resource_item_class(self):
+        return self.get_resource_item_class()
+    
+    def get_form_class(self, dotpath=None):
         if self.state.dotpath:
             pass #TODO
         elif self.form_class:
             return self.form_class
+        
+        effective_dotpath = dotpath
+        
+        if effective_dotpath is None:
+            effective_dotpath = self.state.dotpath
+            
+            if self.state.is_sublisting: #this means we are adding
+                index = len(self.state.subobject)
+                effective_dotpath = '%s.%s' % (effective_dotpath, index)
+        
         class AdminForm(forms.DocumentForm):
             class Meta:
                 document = self.document
                 exclude = self.get_excludes()
-                dotpath = self.state.dotpath
+                dotpath = effective_dotpath
                 schema = self.schema
                 #TODO formfield overides
                 #TODO fields
         return AdminForm
     
+    def get_outbound_links(self):
+        links = super(CRUDResource, self).get_outbound_links()
+        if self.state.is_sublisting:
+            links.append(self.get_create_link(self.state.parent, link_factor='LO'))
+        return links
+    
     def get_idempotent_links(self):
-        links = super(DotpathResource, self).get_idempotent_links()
-        if self.state.item and self.is_listing: #add back the add link
-            links.append(self.get_create_link())
+        links = super(CRUDResource, self).get_idempotent_links()
+        if self.state.is_sublisting: #only display a create link if we are not viewing a specific item
+            links.append(self.get_create_link(self.state.parent))
         return links
 
 class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
@@ -327,7 +296,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     def get_extra_urls(self):
         urlpatterns = super(BaseDocumentResource, self).get_extra_urls()
         urlpatterns += patterns('',
-            url(r'^(?P<pk>\w+)/dotpath/(?P<dotpath>\w+)/',
+            url(r'^(?P<pk>\w+)/dotpath/(?P<dotpath>[\w\.]+)/',
                 include(self.dotpath_resource.urls)),
         )
         return urlpatterns
@@ -438,10 +407,10 @@ class TemporaryDocumentResource(BaseDocumentResource):
                        'on_submit':self.handle_commit_submission,
                        'method':'POST',
                        'form_kwargs':form_kwargs,
-                       'prompt':'edit',
-                       'rel':'edit',}
-        update_link = Link(**link_kwargs)
-        return update_link
+                       'prompt':'commit',
+                       'rel':'commit',}
+        commit_link = Link(**link_kwargs)
+        return commit_link
     
     def handle_commit_submission(self, link, submit_kwargs):
         form = link.get_form(**submit_kwargs)

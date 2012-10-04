@@ -24,3 +24,23 @@ class DocumentChangeList(ChangeList):
         links = list()
         return links
 
+class DotpathChangeList(ChangeList):
+    def __init__(self, resource):
+        super(DotpathChangeList, self).__init__(resource)
+        self.detect_sections()
+    
+    @property
+    def document(self):
+        return self.resource.model
+    
+    def populate_state(self, state):
+        pass
+    
+    def detect_sections(self):
+        return
+    
+    def get_paginator_kwargs(self):
+        return {}
+    
+    def get_links(self, state):
+        return []
