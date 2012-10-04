@@ -138,4 +138,11 @@ class DotpathResourceItem(ResourceItem):
         if self.form_class is not None:
             return self.form_class
         return self.resource.get_form_class(dotpath=self.dotpath)
+    
+    @property
+    def subobject(self):
+        if self.dotpath:
+            val = self.instance
+            return val.dot_notation_to_value(self.dotpath)
+        return self.instance
 

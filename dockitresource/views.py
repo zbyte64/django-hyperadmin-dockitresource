@@ -54,6 +54,12 @@ class DotpathMixin(DocumentDetailMixin):
         data['parent'] = self.get_parent_item()
         return data
     
+    def fork_state(self):
+        super(DotpathMixin, self).fork_state()
+        #cant be an item and a sublisting
+        if self.state.is_sublisting:
+            self.state.pop('item', None)
+    
     def get_create_link(self, **form_kwargs):
         item = self.get_item()
         form_kwargs.update(self.get_form_kwargs())

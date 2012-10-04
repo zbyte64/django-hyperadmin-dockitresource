@@ -147,9 +147,8 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return self.reverse('%sdetail' % self.get_base_url_name(), pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
     
     def get_absolute_url(self):
-        if self.state.item:
-            return self.state.item.get_absolute_url()
-        return None
+        assert self.state.parent
+        return self.state.parent.get_absolute_url()
     
     def get_create_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
@@ -161,7 +160,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         form = link.get_form(**submit_kwargs)
         if form.is_valid():
             instance = form.save()
-            resource_item = self.get_resource_item(instance, dotpath=self.state.dotpath)
+            resource_item = self.get_resource_item(instance, dotpath=form._meta.dotpath)
             return self.get_item_link(resource_item)
         return link.clone(form=form)
     
@@ -181,7 +180,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return self.get_resource_link()
     
     def get_item_prompt(self, item):
-        return unicode(self.state.subobject)
+        return unicode(item.subobject)
     
     def get_resource_items(self):
         dotpath = self.state.dotpath
