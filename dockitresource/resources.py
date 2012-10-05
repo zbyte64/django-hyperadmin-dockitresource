@@ -4,10 +4,12 @@ from hyperadmin.resources.crud.crud import CRUDResource
 from hyperadmin.hyperobjects import Link
 
 from dockit import forms
+from dockit.schema.common import UnSet
 
 from dockitresource import views
 from dockitresource.changelist import DocumentChangeList, DotpathChangeList
 from dockitresource.hyperobjects import DotpathState, DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
+
 
 class DocumentResourceMixin(object):
     dotpath_resource = None
@@ -174,9 +176,9 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return link.clone(form=form)
     
     def handle_delete_submission(self, link, submit_kwargs):
-        #TODO this doesn't work
-        instance = self.state.item.instance
-        instance.delete()
+        instance = self.state.parent.instance
+        instance.dot_notation_set_value(self.state.dotpath, UnSet)
+        instance.save()
         return self.get_resource_link()
     
     def get_item_prompt(self, item):
