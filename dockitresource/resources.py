@@ -150,7 +150,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     
     def get_absolute_url(self):
         assert self.state.parent
-        return self.state.parent.get_absolute_url()
+        return self.reverse('%sdetail' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
     
     def get_create_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
