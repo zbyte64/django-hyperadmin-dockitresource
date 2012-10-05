@@ -126,21 +126,20 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         base_name = self.get_base_url_name()
         urlpatterns = self.get_extra_urls()
         urlpatterns += patterns('',
-            url(r'^$',
+            url(r'^(?P<dotpath>[\w\.]+)/$',
                 wrap(self.detail_view.as_view(**init)),
                 name='%sdetail' % base_name),
-            url(r'^add/$',
+            url(r'^(?P<dotpath>[\w\.]+)/add/$',
                 wrap(self.add_view.as_view(**init)),
                 name='%sadd' % base_name),
-            url(r'^delete/$',
+            url(r'^(?P<dotpath>[\w\.]+)/delete/$',
                 wrap(self.delete_view.as_view(**init)),
                 name='%sdelete' % base_name),
         )
         return urlpatterns
     
     def get_add_url(self):
-        item = self.state['parent']
-        return self.reverse('%sadd' % self.get_base_url_name(), pk=item.instance.pk, dotpath=self.state.dotpath)
+        return self.reverse('%sadd' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
     
     def get_delete_url(self, item):
         return self.reverse('%sdelete' % self.get_base_url_name(), pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
@@ -297,7 +296,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     def get_extra_urls(self):
         urlpatterns = super(BaseDocumentResource, self).get_extra_urls()
         urlpatterns += patterns('',
-            url(r'^(?P<pk>\w+)/dotpath/(?P<dotpath>[\w\.]+)/',
+            url(r'^(?P<pk>\w+)/dotpath/',
                 include(self.dotpath_resource.urls)),
         )
         return urlpatterns
