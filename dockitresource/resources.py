@@ -171,7 +171,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             instance = form.save()
             resource_item = self.get_resource_item(instance, dotpath=self.state.dotpath)
             #or send the update link?
-            return self.get_item_link(resource_item)
+            return self.get_update_link(resource_item)
         return link.clone(form=form)
     
     def handle_delete_submission(self, link, submit_kwargs):
