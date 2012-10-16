@@ -249,6 +249,15 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         if self.state.is_sublisting: #only display a create link if we are not viewing a specific item
             links.append(self.get_create_link(self.state.parent))
         return links
+    
+    def get_breadcrumbs(self):
+        breadcrumbs = self.parent.get_breadcrumbs()
+        parent_item = self.state.parent
+        breadcrumbs.append(self.parent.get_item_breadcrumb(parent_item))
+        #breadcrumbs.append(self.get_breadcrumb())
+        if self.state.item:
+            breadcrumbs.append(self.get_item_breadcrumb(self.state.item))
+        return breadcrumbs
 
 class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     #TODO support the following:
