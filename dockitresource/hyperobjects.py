@@ -97,20 +97,29 @@ class DotpathState(State):
                     field = field.subfield
                 if getattr(field, 'schema', None):
                     schema = field.schema
-                    if schema._meta.typed_field:
-                        typed_field = schema._meta.fields[schema._meta.typed_field]
-                        if self.params.get(schema._meta.typed_field, False):
-                            key = self.params[schema._meta.typed_field]
-                            schema = typed_field.schemas[key]
-                        else:
-                            obj = self.subitem
-                            if obj is not None and isinstance(obj, Schema):
-                                schema = type(obj)
                 else:
                     #too generic?
                     assert False, str(self)
             else:
                 schema = self.resource.document
+            
+            if schema._meta.typed_field:
+                typed_field = schema._meta.fields[schema._meta.typed_field]
+                if self.params.get(schema._meta.typed_field, False):
+                    key = self.params[schema._meta.typed_field]
+                    schema = typed_field.schemas[key]
+                else:
+                    #type ambiguity?!?
+                    obj = self.item
+                    if obj is not None and isinstance(obj.instance, Schema):
+                        schema = type(obj.instance)
+                    else:
+                        print typed_field.get_schema_choices()
+                        print "please display options!"
+                        self['schema_select_field'] = typed_field
+                        self['schema_select'] = typed_field.get_schema_choices()
+                        #TODO this changes the add links to first provide a schema drop down
+            
             self['schema'] = schema
             assert issubclass(schema, Schema)
         return self['schema']

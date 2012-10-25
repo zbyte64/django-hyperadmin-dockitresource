@@ -12,11 +12,19 @@ from dockitresource.hyperobjects import DotpathState, DotpathNamespace, DotpathR
 
 
 class DocumentResourceMixin(object):
+    state_class = DotpathState
     dotpath_resource = None
     
     @property
     def document(self):
         return self.resource_adaptor
+    
+    @property
+    def schema(self):
+        '''
+        Retrieves the currently active schema, taking into account dynamic typing
+        '''
+        return self.state.schema
     
     @property
     def opts(self):
@@ -101,9 +109,60 @@ class DocumentResourceMixin(object):
         if not self.has_change_permission(user):
             queryset = queryset.none()
         return queryset
+    
+    def schema_select(self):
+        return self.state.get('schema_select', None)
+    
+    def get_create_select_schema_form_class(self):
+        from django import forms as djangoforms
+        class SelectSchemaForm(djangoforms.Form):
+            pass
+        typed_field = self.state['schema_select_field']
+        key = self.schema._meta.typed_field
+        SelectSchemaForm.base_fields[key] = djangoforms.ChoiceField(choices=typed_field.get_schema_choices())
+        return SelectSchemaForm
+    
+    def get_create_schema_link(self, schema_type, form_kwargs=None, **kwargs):
+        if form_kwargs is None:
+            form_kwargs = {}
+        form_kwargs = self.get_form_kwargs(**form_kwargs)
+        form_kwargs.setdefault('initial', {})
+        form_kwargs['initial'][self.schema._meta.typed_field] = schema_type
+        
+        link_kwargs = {'url':self.get_add_url(),
+                       'resource':self,
+                       'method':'GET',
+                       'form_kwargs':form_kwargs,
+                       'form_class': self.get_create_select_schema_form_class(),
+                       'prompt':'create',
+                       'rel':'create',}
+        link_kwargs.update(kwargs)
+        create_link = Link(**link_kwargs)
+        return create_link
+    
+    def get_typed_add_links(self):
+        links = []
+        for key, val in self.state['schema_select']:
+            if key:
+                links.append(self.get_create_schema_link(schema_type=key))
+        return links
+    
+    def get_idempotent_links(self):
+        links = super(CRUDResource, self).get_idempotent_links()
+        if not self.state.item: #only display a create link if we are not viewing a specific item
+            if self.schema_select:
+                links.extend(self.get_typed_add_links())
+            else:
+                links.append(self.get_create_link())
+        return links
+    
+    def get_idempotent_links(self):
+        links = super(DocumentResourceMixin, self).get_idempotent_links()
+        if not self.state.item:
+            links.extend(self.get_typed_add_links())
+        return links
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
-    state_class = DotpathState
     changelist_class = DotpathChangeList
     resource_item_class = DotpathResourceItem
     list_resource_item_class = DotpathListResourceItem
@@ -196,13 +255,6 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
                 return [self.get_list_resource_item(item.instance, dotpath=dotpath)]
             return [self.get_resource_item(item.instance, dotpath=dotpath)]
         
-    
-    @property
-    def schema(self):
-        '''
-        Retrieves the currently active schema, taking into account dynamic typing
-        '''
-        return self.state.schema
     
     def get_excludes(self):
         excludes = set()
@@ -298,10 +350,6 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     def get_dotpath_resource_class(self):
         return self.dotpath_resource_class
     
-    @property
-    def schema(self):
-        return self.document
-    
     def get_extra_urls(self):
         urlpatterns = super(BaseDocumentResource, self).get_extra_urls()
         urlpatterns += patterns('',
@@ -329,6 +377,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
             class Meta:
                 document = self.document
                 exclude = self.get_excludes()
+                schema = self.schema
                 #TODO formfield overides
                 #TODO fields
         return AdminForm
