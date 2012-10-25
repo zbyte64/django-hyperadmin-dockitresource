@@ -155,12 +155,6 @@ class DocumentResourceMixin(object):
             else:
                 links.append(self.get_create_link())
         return links
-    
-    def get_idempotent_links(self):
-        links = super(DocumentResourceMixin, self).get_idempotent_links()
-        if not self.state.item:
-            links.extend(self.get_typed_add_links())
-        return links
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
     changelist_class = DotpathChangeList
