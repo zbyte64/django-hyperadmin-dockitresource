@@ -101,7 +101,10 @@ class DotpathState(State):
                     #too generic?
                     assert False, str(self)
             else:
-                schema = self.resource.document
+                if self.item:
+                    schema = type(self.item.instance)
+                else:
+                    schema = self.resource.document
             
             if schema._meta.typed_field:
                 typed_field = schema._meta.fields[schema._meta.typed_field]
@@ -110,12 +113,10 @@ class DotpathState(State):
                     schema = typed_field.schemas[key]
                 else:
                     #type ambiguity?!?
-                    obj = self.item
-                    if obj is not None and isinstance(obj.instance, Schema):
-                        schema = type(obj.instance)
+                    obj = self.subobject
+                    if obj is not None and isinstance(obj, Schema):
+                        schema = type(obj)
                     else:
-                        print typed_field.get_schema_choices()
-                        print "please display options!"
                         self['schema_select_field'] = typed_field
                         self['schema_select'] = typed_field.get_schema_choices()
                         #TODO this changes the add links to first provide a schema drop down
@@ -146,7 +147,7 @@ class DotpathResourceItem(ResourceItem):
     def get_form_class(self):
         if self.form_class is not None:
             return self.form_class
-        return self.resource.get_form_class(dotpath=self.dotpath)
+        return self.resource.get_form_class(dotpath=self.dotpath, subobject=self.subobject)
     
     @property
     def subobject(self):

@@ -110,8 +110,10 @@ class DocumentResourceMixin(object):
             queryset = queryset.none()
         return queryset
     
+    @property
     def schema_select(self):
-        return self.state.get('schema_select', None)
+        self.schema #TODO opperate off this instead?
+        return self.state.get('schema_select', None) is not None
     
     def get_create_select_schema_form_class(self):
         from django import forms as djangoforms
@@ -134,26 +136,33 @@ class DocumentResourceMixin(object):
                        'method':'GET',
                        'form_kwargs':form_kwargs,
                        'form_class': self.get_create_select_schema_form_class(),
-                       'prompt':'create',
+                       'prompt':'create %s' % schema_type,
                        'rel':'create',}
         link_kwargs.update(kwargs)
         create_link = Link(**link_kwargs)
         return create_link
     
-    def get_typed_add_links(self):
+    def get_typed_add_links(self, **kwargs):
         links = []
         for key, val in self.state['schema_select']:
             if key:
-                links.append(self.get_create_schema_link(schema_type=key))
+                links.append(self.get_create_schema_link(schema_type=key, **kwargs))
         return links
     
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
         if not self.state.item: #only display a create link if we are not viewing a specific item
-            if self.schema_select:
-                links.extend(self.get_typed_add_links())
-            else:
+            if not self.schema_select:
                 links.append(self.get_create_link())
+        return links
+    
+    def get_outbound_links(self):
+        links = super(CRUDResource, self).get_outbound_links()
+        if not self.state.item:
+            if self.schema_select:
+                links.extend(self.get_typed_add_links(link_factor='LO', include_form_params_in_url=True))
+            else:
+                links.append(self.get_create_link(link_factor='LO'))
         return links
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
@@ -259,7 +268,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     def get_list_resource_item_class(self):
         return self.get_resource_item_class()
     
-    def get_form_class(self, dotpath=None):
+    def get_form_class(self, dotpath=None, subobject=None):
         if self.state.dotpath:
             pass #TODO
         elif self.form_class:
@@ -274,26 +283,34 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
                 index = len(self.state.subobject)
                 effective_dotpath = '%s.%s' % (effective_dotpath, index)
         
+        effective_schema = self.schema
+        if subobject:
+            effective_schema = type(subobject)
+        
         class AdminForm(forms.DocumentForm):
             class Meta:
                 document = self.document
                 exclude = self.get_excludes()
                 dotpath = effective_dotpath
-                schema = self.schema
+                schema = effective_schema
                 #TODO formfield overides
                 #TODO fields
         return AdminForm
     
-    def get_outbound_links(self):
-        links = super(CRUDResource, self).get_outbound_links()
-        if self.state.is_sublisting:
-            links.append(self.get_create_link(self.state.parent, link_factor='LO'))
-        return links
-    
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
-        if self.state.is_sublisting: #only display a create link if we are not viewing a specific item
-            links.append(self.get_create_link(self.state.parent))
+        if not self.state.item or self.state.is_sublisting: #only display a create link if we are not viewing a specific item
+            if not self.schema_select:
+                links.append(self.get_create_link())
+        return links
+    
+    def get_outbound_links(self):
+        links = super(CRUDResource, self).get_outbound_links()
+        if not self.state.item or self.state.is_sublisting:
+            if self.schema_select:
+                links.extend(self.get_typed_add_links(link_factor='LO', include_form_params_in_url=True))
+            else:
+                links.append(self.get_create_link(link_factor='LO'))
         return links
     
     def get_breadcrumbs(self):

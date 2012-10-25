@@ -60,18 +60,15 @@ class DotpathMixin(DocumentDetailMixin):
         if self.state.is_sublisting:
             self.state.pop('item', None)
     
-    def get_create_link(self, **form_kwargs):
-        item = self.get_item()
-        form_kwargs.update(self.get_form_kwargs())
-        link_kwargs = self.get_link_kwargs()
-        link_kwargs.update({'form_class': self.get_form_class(),
-                            'form_kwargs': form_kwargs,
-                            'item':item,})
-        return self.resource.get_create_link(**link_kwargs)
+    def get_link_kwargs(self, **kwargs):
+        kwargs = super(DotpathMixin, self).get_link_kwargs(**kwargs)
+        if 'item' not in kwargs:
+            kwargs['item'] = self.get_item()
+        return kwargs
 
 class DotpathCreateView(DotpathMixin, DocumentCreateView):
     def get(self, request, *args, **kwargs):
-        return self.resource.generate_response(self.get_response_media_type(), self.get_response_type(), self.get_create_link())
+        return self.resource.generate_response(self.get_response_media_type(), self.get_response_type(), self.get_create_link(use_request_url=True))
 
 class DotpathListView(DotpathMixin, DocumentListView):
     def get(self, request, *args, **kwargs):
