@@ -118,7 +118,10 @@ class DocumentResourceMixin(object):
     def get_create_select_schema_form_class(self):
         from django import forms as djangoforms
         class SelectSchemaForm(djangoforms.Form):
-            pass
+            def __init__(self, **kwargs):
+                self.instance = kwargs.pop('instance', None)
+                super(SelectSchemaForm, self).__init__(**kwargs)
+        
         typed_field = self.state['schema_select_field']
         key = self.schema._meta.typed_field
         SelectSchemaForm.base_fields[key] = djangoforms.ChoiceField(choices=typed_field.get_schema_choices())
@@ -151,14 +154,14 @@ class DocumentResourceMixin(object):
     
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
-        if not self.state.item: #only display a create link if we are not viewing a specific item
+        if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
             if not self.schema_select:
                 links.append(self.get_create_link())
         return links
     
     def get_outbound_links(self):
         links = super(CRUDResource, self).get_outbound_links()
-        if not self.state.item:
+        if self.show_create_link() and not self.state.item:
             if self.schema_select:
                 links.extend(self.get_typed_add_links(link_factor='LO', include_form_params_in_url=True))
             else:
@@ -212,6 +215,12 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     def get_absolute_url(self):
         assert self.state.parent
         return self.reverse('%sdetail' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
+    
+    def get_create_schema_link(self, item, schema_type, form_kwargs=None, **kwargs):
+        if form_kwargs is None:
+            form_kwargs = {}
+        form_kwargs = self.get_form_kwargs(item, **form_kwargs)
+        return super(DotpathResource, self).get_create_schema_link(schema_type=schema_type, form_kwargs=form_kwargs, **kwargs)
     
     def get_create_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
@@ -297,20 +306,26 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
                 #TODO fields
         return AdminForm
     
+    def show_create_link(self):
+        return not self.state.has_view_class('change_form') and (not self.state.item or self.state.is_sublisting)
+    
+    def show_delete_link(self, item):
+        return super(DotpathResource, self).show_delete_link(item) and not self.state.has_view_class('add_form')
+    
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
-        if not self.state.item or self.state.is_sublisting: #only display a create link if we are not viewing a specific item
+        if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
             if not self.schema_select:
-                links.append(self.get_create_link())
+                links.append(self.get_create_link(item=self.state.parent))
         return links
     
     def get_outbound_links(self):
         links = super(CRUDResource, self).get_outbound_links()
-        if not self.state.item or self.state.is_sublisting:
+        if self.show_create_link() and not self.state.item:
             if self.schema_select:
-                links.extend(self.get_typed_add_links(link_factor='LO', include_form_params_in_url=True))
+                links.extend(self.get_typed_add_links(item=self.state.parent, link_factor='LO', include_form_params_in_url=True))
             else:
-                links.append(self.get_create_link(link_factor='LO'))
+                links.append(self.get_create_link(item=self.state.parent, link_factor='LO'))
         return links
     
     def get_breadcrumbs(self):
