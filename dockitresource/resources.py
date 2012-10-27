@@ -127,25 +127,33 @@ class DocumentResourceMixin(object):
         SelectSchemaForm.base_fields[key] = djangoforms.ChoiceField(choices=typed_field.get_schema_choices())
         return SelectSchemaForm
     
-    def get_create_schema_link(self, schema_type, form_kwargs=None, **kwargs):
+    def get_create_schema_link(self, schema_type=None, form_kwargs=None, **kwargs):
+        """
+        Returns a link to the create view and includes a form for selecting the type of schema
+        """
         if form_kwargs is None:
             form_kwargs = {}
         form_kwargs = self.get_form_kwargs(**form_kwargs)
         form_kwargs.setdefault('initial', {})
-        form_kwargs['initial'][self.schema._meta.typed_field] = schema_type
+        if schema_type:
+            form_kwargs['initial'][self.schema._meta.typed_field] = schema_type
+            prompt = 'create %s' % schema_type
+        else:
+            prompt = 'create'
         
         link_kwargs = {'url':self.get_add_url(),
                        'resource':self,
                        'method':'GET',
                        'form_kwargs':form_kwargs,
                        'form_class': self.get_create_select_schema_form_class(),
-                       'prompt':'create %s' % schema_type,
+                       'prompt':prompt,
                        'rel':'create',}
         link_kwargs.update(kwargs)
         create_link = Link(**link_kwargs)
         return create_link
     
     def get_typed_add_links(self, **kwargs):
+        return [self.get_create_schema_link(**kwargs)]
         links = []
         for key, val in self.state['schema_select']:
             if key:
@@ -163,7 +171,7 @@ class DocumentResourceMixin(object):
         links = super(CRUDResource, self).get_outbound_links()
         if self.show_create_link() and not self.state.item:
             if self.schema_select:
-                links.extend(self.get_typed_add_links(link_factor='LO', include_form_params_in_url=True))
+                links.extend(self.get_typed_add_links(link_factor='LO'))
             else:
                 links.append(self.get_create_link(link_factor='LO'))
         return links
@@ -216,11 +224,11 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         assert self.state.parent
         return self.reverse('%sdetail' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
     
-    def get_create_schema_link(self, item, schema_type, form_kwargs=None, **kwargs):
+    def get_create_schema_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
             form_kwargs = {}
         form_kwargs = self.get_form_kwargs(item, **form_kwargs)
-        return super(DotpathResource, self).get_create_schema_link(schema_type=schema_type, form_kwargs=form_kwargs, **kwargs)
+        return super(DotpathResource, self).get_create_schema_link(form_kwargs=form_kwargs, **kwargs)
     
     def get_create_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
