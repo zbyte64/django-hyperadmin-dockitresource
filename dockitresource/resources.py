@@ -340,10 +340,14 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         breadcrumbs = self.parent.get_breadcrumbs()
         parent_item = self.state.parent
         breadcrumbs.append(self.parent.get_item_breadcrumb(parent_item))
-        #breadcrumbs.append(self.get_breadcrumb())
-        if self.state.item:
-            breadcrumbs.append(self.get_item_breadcrumb(self.state.item))
+        #TODO fill all the dotpaths inbetween
+        #TODO this part is funky...
+        breadcrumbs.append(self.get_breadcrumb())
         return breadcrumbs
+    
+    def get_prompt(self):
+        return self.schema._meta.module_name
+    
 
 class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     #TODO support the following:
