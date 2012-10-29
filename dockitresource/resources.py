@@ -138,8 +138,10 @@ class DocumentResourceMixin(object):
         if schema_type:
             form_kwargs['initial'][self.schema._meta.typed_field] = schema_type
             prompt = 'create %s' % schema_type
+            link_factor = 'LO'
         else:
             prompt = 'create'
+            link_factor = 'LT'
         
         link_kwargs = {'url':self.get_add_url(),
                        'resource':self,
@@ -147,7 +149,8 @@ class DocumentResourceMixin(object):
                        'form_kwargs':form_kwargs,
                        'form_class': self.get_create_select_schema_form_class(),
                        'prompt':prompt,
-                       'rel':'create',}
+                       'rel':'create',
+                       'link_factor':link_factor,}
         link_kwargs.update(kwargs)
         create_link = Link(**link_kwargs)
         return create_link
@@ -171,7 +174,7 @@ class DocumentResourceMixin(object):
         links = super(CRUDResource, self).get_outbound_links()
         if self.show_create_link() and not self.state.item:
             if self.schema_select:
-                links.extend(self.get_typed_add_links(link_factor='LO'))
+                links.extend(self.get_typed_add_links())
             else:
                 links.append(self.get_create_link(link_factor='LO'))
         return links
