@@ -112,8 +112,7 @@ class DocumentResourceMixin(object):
     
     @property
     def schema_select(self):
-        self.schema #TODO opperate off this instead?
-        return self.state.get('schema_select', None) is not None
+        return self.state.requires_schema_select
     
     def get_create_select_schema_form_class(self):
         from django import forms as djangoforms
@@ -122,8 +121,8 @@ class DocumentResourceMixin(object):
                 self.instance = kwargs.pop('instance', None)
                 super(SelectSchemaForm, self).__init__(**kwargs)
         
-        typed_field = self.state['schema_select_field']
-        key = self.schema._meta.typed_field
+        typed_field = self.state.get_schema_select_field()
+        key = typed_field.name
         SelectSchemaForm.base_fields[key] = djangoforms.ChoiceField(choices=typed_field.get_schema_choices())
         return SelectSchemaForm
     
@@ -157,11 +156,6 @@ class DocumentResourceMixin(object):
     
     def get_typed_add_links(self, **kwargs):
         return [self.get_create_schema_link(**kwargs)]
-        links = []
-        for key, val in self.state['schema_select']:
-            if key:
-                links.append(self.get_create_schema_link(schema_type=key, **kwargs))
-        return links
     
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
@@ -334,7 +328,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         links = super(CRUDResource, self).get_outbound_links()
         if self.show_create_link() and not self.state.item:
             if self.schema_select:
-                links.extend(self.get_typed_add_links(item=self.state.parent, link_factor='LO', include_form_params_in_url=True))
+                links.extend(self.get_typed_add_links(item=self.state.parent, include_form_params_in_url=True))
             else:
                 links.append(self.get_create_link(item=self.state.parent, link_factor='LO'))
         return links

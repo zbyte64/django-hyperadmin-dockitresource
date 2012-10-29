@@ -30,6 +30,11 @@ class DotpathListResourceItem(ListResourceItem):
     form_class = DotpathListForm
 
 class DotpathState(State):
+    def fork(self, **kwargs):
+        a_copy = super(DotpathState, self).fork(**kwargs)
+        a_copy.pop('base_schema', None)
+        return a_copy
+    
     def set_dotpath(self, val):
         self['dopath'] = val
     
@@ -82,14 +87,11 @@ class DotpathState(State):
                 assert field
         return field
     
-    def set_schema(self, val):
-        self['schema'] = val
-    
-    def get_schema(self):
+    def get_base_schema(self):
         '''
         Retrieves the currently active schema, taking into account dynamic typing
         '''
-        if 'schema' not in self:
+        if 'base_schema' not in self:
             schema = None
             if self.dotpath:
                 field = self._get_field(self.resource.document, self.dotpath)
@@ -106,26 +108,54 @@ class DotpathState(State):
                 else:
                     schema = self.resource.document
             
-            if schema._meta.typed_field:
-                typed_field = schema._meta.fields[schema._meta.typed_field]
-                if self.params.get(schema._meta.typed_field, False):
-                    key = self.params[schema._meta.typed_field]
-                    schema = typed_field.schemas[key]
-                else:
-                    #type ambiguity?!?
-                    obj = self.subobject
-                    if obj is not None and isinstance(obj, Schema):
-                        schema = type(obj)
-                    else:
-                        self['schema_select_field'] = typed_field
-                        self['schema_select'] = typed_field.get_schema_choices()
-                        #TODO this changes the add links to first provide a schema drop down
-            
-            self['schema'] = schema
+            self['base_schema'] = schema
             assert issubclass(schema, Schema)
-        return self['schema']
+        return self['base_schema']
     
-    schema = property(get_schema, set_schema)
+    def get_schema(self):
+        '''
+        Retrieves the currently active schema, taking into account dynamic typing
+        '''
+        schema = self.get_base_schema()
+            
+        if schema._meta.typed_field:
+            typed_field = schema._meta.fields[schema._meta.typed_field]
+            if self.params.get(schema._meta.typed_field, False):
+                key = self.params[schema._meta.typed_field]
+                schema = typed_field.schemas[key]
+            else:
+                #type ambiguity?!?
+                obj = self.subobject
+                if obj is not None and isinstance(obj, Schema):
+                    schema = type(obj)
+                else:
+                    pass
+                    #TODO this changes the add links to first provide a schema drop down
+            
+            assert issubclass(schema, Schema)
+        return schema
+    
+    schema = property(get_schema)
+    
+    def get_schema_select_field(self):
+        schema = self.get_base_schema()
+            
+        if schema._meta.typed_field:
+            typed_field = schema._meta.fields[schema._meta.typed_field]
+            return typed_field
+        return None
+    
+    @property
+    def requires_schema_select(self):
+        typed_field = self.get_schema_select_field()
+            
+        if typed_field:
+            if self.params.get(typed_field.name, False):
+                key = self.params[typed_field.name]
+                return key in typed_field.schemas
+            else:
+                return not bool(self.subobject) or self.is_sublisting
+        return False
     
     @property
     def is_sublisting(self):
