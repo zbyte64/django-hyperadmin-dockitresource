@@ -1,7 +1,7 @@
 from django.utils.encoding import force_unicode
 from django import forms
 
-from hyperadmin.hyperobjects import State, Namespace, ResourceItem
+from hyperadmin.hyperobjects import ResourceState, Namespace, ResourceItem
 from hyperadmin.resources.crud.hyperobjects import ListResourceItem
 
 from dockit.schema import Schema
@@ -29,7 +29,7 @@ class DotpathListForm(forms.Form):
 class DotpathListResourceItem(ListResourceItem):
     form_class = DotpathListForm
 
-class DotpathState(State):
+class DotpathState(ResourceState):
     def fork(self, **kwargs):
         a_copy = super(DotpathState, self).fork(**kwargs)
         a_copy.pop('base_schema', None)

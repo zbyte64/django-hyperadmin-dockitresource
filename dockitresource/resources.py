@@ -380,7 +380,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     
     def create_dotpath_resource(self):
         cls = self.get_dotpath_resource_class()
-        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent_resource=self)
+        return cls(resource_adaptor=self.resource_adaptor, site_state=self.site_state, parent_resource=self)
     
     def get_dotpath_resource_class(self):
         return self.dotpath_resource_class
@@ -522,7 +522,7 @@ class DocumentResource(BaseDocumentResource):
     
     def create_temporary_document_resource(self):
         cls = self.get_temporary_document_resource_class()
-        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent_resource=self)
+        return cls(resource_adaptor=self.resource_adaptor, site_state=self.site_state, parent_resource=self)
     
     def get_temporary_document_resource_class(self):
         return self.temporary_document_resource_class
