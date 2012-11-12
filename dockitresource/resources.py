@@ -186,27 +186,28 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     def get_base_url_name(self):
         return '%s%s_' % (self.parent.get_base_url_name(), 'dotpath')
     
-    def get_urls(self):
-        def wrap(view, cacheable=False):
-            return self.as_view(view, cacheable)
-        
+    def get_view_endpoints(self):
+        endpoints = super(CRUDResource, self).get_view_endpoints()
         init = self.get_view_kwargs()
-        
-        # Admin-site-wide views.
         base_name = self.get_base_url_name()
-        urlpatterns = self.get_extra_urls()
-        urlpatterns += patterns('',
-            url(r'^(?P<dotpath>[\w\.]+)/$',
-                wrap(self.detail_view.as_view(**init)),
-                name='%sdetail' % base_name),
-            url(r'^(?P<dotpath>[\w\.]+)/add/$',
-                wrap(self.add_view.as_view(**init)),
-                name='%sadd' % base_name),
-            url(r'^(?P<dotpath>[\w\.]+)/delete/$',
-                wrap(self.delete_view.as_view(**init)),
-                name='%sdelete' % base_name),
-        )
-        return urlpatterns
+        
+        endpoints.append({
+            'url': r'^(?P<dotpath>[\w\.]+)/$',
+            'view': self.detail_view.as_view(**init),
+            'name': '%sdetail' % base_name,
+        })
+        endpoints.append({
+            'url': r'^(?P<dotpath>[\w\.]+)/add/$',
+            'view': self.add_view.as_view(**init),
+            'name': '%sadd' % base_name,
+        })
+        endpoints.append({
+            'url': r'^(?P<dotpath>[\w\.]+)/delete/$',
+            'view': self.delete_view.as_view(**init),
+            'name': '%sdelete' % base_name,
+        })
+        
+        return endpoints
     
     def get_add_url(self):
         return self.reverse('%sadd' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
