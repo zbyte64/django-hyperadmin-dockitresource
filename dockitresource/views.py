@@ -2,6 +2,10 @@ from dockit.views.detail import SingleObjectMixin
 
 from hyperadmin.resources.crud.views import CRUDDetailMixin, CRUDCreateView, CRUDListView, CRUDDeleteView, CRUDDetailView
 
+from dockitresource.states import DotpathEndpointState
+from dockitresource.endpoints import ListEndpoint
+
+
 class DocumentMixin(object):
     document = None
     queryset = None
@@ -31,6 +35,8 @@ class DocumentDetailView(DocumentDetailMixin, CRUDDetailView):
 #dotpath views:
 
 class DotpathMixin(DocumentDetailMixin):
+    state_class = DotpathEndpointState
+    
     @property
     def is_sublisting(self):
         return self.state.is_sublisting
@@ -40,25 +46,22 @@ class DotpathMixin(DocumentDetailMixin):
             self.object = self.get_object()
         return self.resource.parent.get_resource_item(self.object)
     
+    def create_state(self):
+        state = super(DotpathMixin, self).create_state()
+        state.dotpath = self.kwargs['dotpath']
+        state.parent = self.get_parent_item()
+        return state
+    
     def get_item(self):
         if not getattr(self, 'object', None):
             self.object = self.get_object()
-        if hasattr(self, 'state'):
-            dotpath = self.state.dotpath
-        else:
-            dotpath = self.kwargs['dotpath']
+        dotpath = self.kwargs['dotpath']
         return self.resource.get_resource_item(self.object, dotpath=dotpath)
     
-    def get_state_data(self):
-        data = super(DotpathMixin, self).get_state_data()
-        data['parent'] = self.get_parent_item()
-        return data
-    
-    def fork_state(self):
-        super(DotpathMixin, self).fork_state()
-        #cant be an item and a sublisting
-        if self.state.is_sublisting:
-            self.state.pop('item', None)
+    #def get_state_data(self):
+    #    data = super(DotpathMixin, self).get_state_data()
+    #    data['parent'] = self.get_parent_item()
+    #    return data
     
     def get_link_kwargs(self, **kwargs):
         kwargs = super(DotpathMixin, self).get_link_kwargs(**kwargs)
@@ -90,16 +93,14 @@ class DotpathDeleteView(DotpathMixin, DocumentDeleteView):
     pass
 
 class DotpathDetailView(DotpathMixin, DocumentDetailView):
-    def dispatch(self, request, *args, **kwargs):
-        self.request = request
-        self.args = args
-        self.kwargs = kwargs
-        self.fork_state()
+    def dispatch_api(self, request, *args, **kwargs):
         if self.is_sublisting:
             return self.dispatch_list(request, *args, **kwargs)
-        return super(DotpathDetailView, self).dispatch(request, *args, **kwargs)
+        return super(DotpathDetailView, self).dispatch_api(request, *args, **kwargs)
     
     def dispatch_list(self, request, *args, **kwargs):
-        init = self.resource.get_view_kwargs()
-        view = self.resource.list_view.as_view(**init)
+        #init = self.resource.get_view_kwargs()
+        #view = self.resource.list_view.as_view(**init)
+        view = ListEndpoint(resource=self.resource).get_view()
         return view(request, *args, **kwargs)
+

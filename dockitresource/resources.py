@@ -4,15 +4,16 @@ from hyperadmin.resources.crud.crud import CRUDResource
 from hyperadmin.hyperobjects import Link
 
 from dockit import forms
-from dockit.schema.common import UnSet
 
 from dockitresource import views
 from dockitresource.changelist import DocumentChangeList, DotpathChangeList
-from dockitresource.hyperobjects import DotpathState, DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
+from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
+from dockitresource.states import DotpathResourceState
+from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint
 
 
 class DocumentResourceMixin(object):
-    state_class = DotpathState
+    state_class = DotpathResourceState
     dotpath_resource = None
     
     @property
@@ -101,7 +102,6 @@ class DocumentResourceMixin(object):
                 link = inline.get_item_link(subitem)
                 namespace = DotpathNamespace(name=name, link=link, state=inline.state)
                 namespaces[name] = namespace
-            
         return namespaces
     
     def get_queryset(self, user):
@@ -156,7 +156,7 @@ class DocumentResourceMixin(object):
     
     def get_typed_add_links(self, **kwargs):
         return [self.get_create_schema_link(**kwargs)]
-    
+    '''
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
         if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
@@ -172,6 +172,7 @@ class DocumentResourceMixin(object):
             else:
                 links.append(self.get_create_link(link_factor='LO'))
         return links
+    '''
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
     changelist_class = DotpathChangeList
@@ -188,38 +189,16 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     
     def get_view_endpoints(self):
         endpoints = super(CRUDResource, self).get_view_endpoints()
-        init = self.get_view_kwargs()
-        base_name = self.get_base_url_name()
-        
-        endpoints.append({
-            'url': r'^(?P<dotpath>[\w\.]+)/$',
-            'view': self.detail_view.as_view(**init),
-            'name': '%sdetail' % base_name,
-        })
-        endpoints.append({
-            'url': r'^(?P<dotpath>[\w\.]+)/add/$',
-            'view': self.add_view.as_view(**init),
-            'name': '%sadd' % base_name,
-        })
-        endpoints.append({
-            'url': r'^(?P<dotpath>[\w\.]+)/delete/$',
-            'view': self.delete_view.as_view(**init),
-            'name': '%sdelete' % base_name,
-        })
-        
+        endpoints.extend([
+            DotpathCreateEndpoint(resource=self),
+            DotpathDetailEndpoint(resource=self),
+            DotpathDeleteEndpoint(resource=self),
+        ])
         return endpoints
-    
-    def get_add_url(self):
-        return self.reverse('%sadd' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
-    
-    def get_delete_url(self, item):
-        return self.reverse('%sdelete' % self.get_base_url_name(), pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
-    
-    def get_item_url(self, item):
-        return self.reverse('%sdetail' % self.get_base_url_name(), pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
     
     def get_absolute_url(self):
         assert self.state.parent
+        assert self.state.dotpath
         return self.reverse('%sdetail' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
     
     def get_create_schema_link(self, item, form_kwargs=None, **kwargs):
@@ -233,29 +212,6 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             form_kwargs = {}
         form_kwargs = self.get_form_kwargs(item, **form_kwargs)
         return super(DotpathResource, self).get_create_link(form_kwargs, **kwargs)
-    
-    def handle_create_submission(self, link, submit_kwargs):
-        form = link.get_form(**submit_kwargs)
-        if form.is_valid():
-            instance = form.save()
-            resource_item = self.get_resource_item(instance, dotpath=form._meta.dotpath)
-            return self.get_item_link(resource_item)
-        return link.clone(form=form)
-    
-    def handle_update_submission(self, link, submit_kwargs):
-        form = link.get_form(**submit_kwargs)
-        if form.is_valid():
-            instance = form.save()
-            resource_item = self.get_resource_item(instance, dotpath=self.state.dotpath)
-            #or send the update link?
-            return self.get_update_link(resource_item)
-        return link.clone(form=form)
-    
-    def handle_delete_submission(self, link, submit_kwargs):
-        instance = self.state.parent.instance
-        instance.dot_notation_set_value(self.state.dotpath, UnSet)
-        instance.save()
-        return self.get_resource_link()
     
     def get_item_prompt(self, item):
         return unicode(item.subobject)
@@ -317,7 +273,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     
     def show_delete_link(self, item):
         return super(DotpathResource, self).show_delete_link(item) and not self.state.has_view_class('add_form')
-    
+    '''
     def get_idempotent_links(self):
         links = super(CRUDResource, self).get_idempotent_links()
         if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
@@ -333,7 +289,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             else:
                 links.append(self.get_create_link(item=self.state.parent, link_factor='LO'))
         return links
-    
+    '''
     def get_breadcrumbs(self):
         breadcrumbs = self.parent.get_breadcrumbs()
         parent_item = self.state.parent
