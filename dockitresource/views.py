@@ -3,7 +3,7 @@ from dockit.views.detail import SingleObjectMixin
 from hyperadmin.resources.crud.views import CRUDDetailMixin, CRUDCreateView, CRUDListView, CRUDDeleteView, CRUDDetailView
 
 from dockitresource.states import DotpathEndpointState
-from dockitresource.endpoints import ListEndpoint
+from dockitresource.endpoints import DotpathListEndpoint
 
 
 class DocumentMixin(object):
@@ -101,6 +101,6 @@ class DotpathDetailView(DotpathMixin, DocumentDetailView):
     def dispatch_list(self, request, *args, **kwargs):
         #init = self.resource.get_view_kwargs()
         #view = self.resource.list_view.as_view(**init)
-        view = ListEndpoint(resource=self.resource).get_view()
+        view = DotpathListEndpoint(resource=self.resource).get_view()
         return view(request, *args, **kwargs)
 

@@ -65,7 +65,10 @@ class DotpathDeleteLinkPrototype(DeleteLinkPrototype):
         instance.save()
         return self.on_success()
 
-class DotpathCreateEndpoint(DetailEndpoint):
+class DotpathListEndpoint(ListEndpoint):
+    pass
+
+class DotpathCreateEndpoint(CreateEndpoint):
     url_suffix = r'^(?P<dotpath>[\w\.]+)/add/$'
     
     def get_links(self):

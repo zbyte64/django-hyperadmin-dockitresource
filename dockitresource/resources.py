@@ -97,6 +97,7 @@ class DocumentResourceMixin(object):
                     dotpath = base_dotpath+'.'+field.name
                 else:
                     dotpath = field.name
+                #we forked but links is pointing somewhere else...
                 inline = self.dotpath_resource.fork_state(dotpath=dotpath, parent=item)
                 subitem = inline.get_resource_item(item.instance, dotpath=dotpath)
                 link = inline.get_item_link(subitem)
@@ -227,7 +228,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return super(DotpathResource, self).show_delete_link(item) and not self.state.has_view_class('add_form')
     '''
     def get_idempotent_links(self):
-        links = super(CRUDResource, self).get_idempotent_links()
+        links = self.create_link_collection()
         if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
             if not self.schema_select:
                 links.append(self.get_create_link(item=self.state.parent))
@@ -236,10 +237,12 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     def get_outbound_links(self):
         links = super(CRUDResource, self).get_outbound_links()
         if self.show_create_link() and not self.state.item:
-            if self.schema_select:
-                links.extend(self.get_typed_add_links(item=self.state.parent, include_form_params_in_url=True))
-            else:
-                links.append(self.get_create_link(item=self.state.parent, link_factor='LO'))
+            print links.add_link('create'), self.link_prototypes, self.endpoints
+            links.append(self.link_prototypes['create'].get_link())
+        #    if self.schema_select:
+        #        links.extend(self.get_typed_add_links(item=self.state.parent, include_form_params_in_url=True))
+        #    else:
+        #        links.append(self.get_create_link(item=self.state.parent, link_factor='LO'))
         return links
     '''
     def get_breadcrumbs(self):
