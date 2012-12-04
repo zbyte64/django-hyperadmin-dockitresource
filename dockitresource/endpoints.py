@@ -1,6 +1,43 @@
-from hyperadmin.resources.crud.endpoints import ListEndpoint, CreateEndpoint, DetailEndpoint, DeleteEndpoint, CreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype
+from hyperadmin.resources.crud.endpoints import ListEndpoint, CreateEndpoint as BaseCreateEndpoint, DetailEndpoint, DeleteEndpoint, CreateLinkPrototype as BaseCreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype
 
 from dockit.schema.common import UnSet
+
+
+class CreateLinkPrototype(BaseCreateLinkPrototype):
+    def get_link_kwargs(self, **kwargs):
+        form_kwargs = kwargs.pop('form_kwargs', None)
+        if form_kwargs is None:
+            form_kwargs = {}
+        form_kwargs = self.resource.get_form_kwargs(**form_kwargs)
+        form_kwargs.setdefault('initial', {})
+        
+        method = 'POST'
+        if kwargs.get('link_factor', None) in ('LO', 'LT'):
+            method = 'GET'
+        
+            if self.resource.schema_select:
+                #TODO this is a hack?
+                if kwargs.get('rel', None) != 'breadcrumb':
+                    kwargs['link_factor'] = 'LT'
+                form_class = self.resource.get_create_select_schema_form_class()
+            else:
+                form_class = self.resource.get_form_class()
+        else:
+            form_class = self.resource.get_form_class()
+        
+        link_kwargs = {'url':self.get_url(),
+                       'resource':self,
+                       'method':method,
+                       'form_kwargs':form_kwargs,
+                       'form_class': form_class,
+                       'prompt':'create',
+                       'rel':'create',}
+        link_kwargs.update(kwargs)
+        return super(CreateLinkPrototype, self).get_link_kwargs(**link_kwargs)
+
+class CreateEndpoint(BaseCreateEndpoint):
+    def get_links(self):
+        return {'create':CreateLinkPrototype(endpoint=self)}
 
 class DotpathCreateLinkPrototype(CreateLinkPrototype):
     def handle_submission(self, link, submit_kwargs):

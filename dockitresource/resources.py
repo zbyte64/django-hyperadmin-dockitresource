@@ -9,7 +9,7 @@ from dockitresource import views
 from dockitresource.changelist import DocumentChangeList, DotpathChangeList
 from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
 from dockitresource.states import DotpathResourceState
-from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint
+from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint, ListEndpoint, CreateEndpoint, DetailEndpoint, DeleteEndpoint
 
 
 class DocumentResourceMixin(object):
@@ -125,54 +125,6 @@ class DocumentResourceMixin(object):
         key = typed_field.name
         SelectSchemaForm.base_fields[key] = djangoforms.ChoiceField(choices=typed_field.get_schema_choices())
         return SelectSchemaForm
-    
-    def get_create_schema_link(self, schema_type=None, form_kwargs=None, **kwargs):
-        """
-        Returns a link to the create view and includes a form for selecting the type of schema
-        """
-        if form_kwargs is None:
-            form_kwargs = {}
-        form_kwargs = self.get_form_kwargs(**form_kwargs)
-        form_kwargs.setdefault('initial', {})
-        if schema_type:
-            form_kwargs['initial'][self.schema._meta.typed_field] = schema_type
-            prompt = 'create %s' % schema_type
-            link_factor = 'LO'
-        else:
-            prompt = 'create'
-            link_factor = 'LT'
-        
-        link_kwargs = {'url':self.get_add_url(),
-                       'resource':self,
-                       'method':'GET',
-                       'form_kwargs':form_kwargs,
-                       'form_class': self.get_create_select_schema_form_class(),
-                       'prompt':prompt,
-                       'rel':'create',
-                       'link_factor':link_factor,}
-        link_kwargs.update(kwargs)
-        create_link = Link(**link_kwargs)
-        return create_link
-    
-    def get_typed_add_links(self, **kwargs):
-        return [self.get_create_schema_link(**kwargs)]
-    '''
-    def get_idempotent_links(self):
-        links = super(CRUDResource, self).get_idempotent_links()
-        if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
-            if not self.schema_select:
-                links.append(self.get_create_link())
-        return links
-    
-    def get_outbound_links(self):
-        links = super(CRUDResource, self).get_outbound_links()
-        if self.show_create_link() and not self.state.item:
-            if self.schema_select:
-                links.extend(self.get_typed_add_links())
-            else:
-                links.append(self.get_create_link(link_factor='LO'))
-        return links
-    '''
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
     changelist_class = DotpathChangeList
@@ -341,6 +293,16 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     
     def get_dotpath_resource_class(self):
         return self.dotpath_resource_class
+    
+    def get_view_endpoints(self):
+        endpoints = super(CRUDResource, self).get_view_endpoints()
+        endpoints.extend([
+            ListEndpoint(self),
+            CreateEndpoint(self),
+            DetailEndpoint(self),
+            DeleteEndpoint(self),
+        ])
+        return endpoints
     
     def get_extra_urls(self):
         urlpatterns = super(BaseDocumentResource, self).get_extra_urls()
