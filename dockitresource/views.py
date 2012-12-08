@@ -71,7 +71,7 @@ class DotpathMixin(DocumentDetailMixin):
 
 class DotpathCreateView(DotpathMixin, DocumentCreateView):
     def get(self, request, *args, **kwargs):
-        return self.resource.generate_response(self.get_response_media_type(), self.get_response_type(), self.get_create_link(use_request_url=True))
+        return self.generate_response(self.get_create_link(use_request_url=True))
 
 class DotpathListView(DotpathMixin, DocumentListView):
     def get(self, request, *args, **kwargs):

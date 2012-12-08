@@ -70,7 +70,12 @@ class DotpathStateMixin(object):
                 schema = typed_field.schemas[key]
             else:
                 #type ambiguity?!?
-                obj = self.subobject
+                if self.dotpath:
+                    obj = self.subobject
+                elif self.item:
+                    obj = self.item.instance
+                else:
+                    obj = None
                 if obj is not None and isinstance(obj, Schema):
                     schema = type(obj)
                 else:
@@ -133,33 +138,41 @@ class DotpathResourceState(DotpathStateMixin, ResourceState):
     subobject = property(get_subobject)
 '''
 class DotpathEndpointState(DotpathStateMixin, EndpointState):
+    @property
+    def schema_state(self):
+        if self.endpoint.common_state is not None:
+            return self.endpoint.common_state
+        #if self.endpoint.state is not None:
+        #    return self.resource.state
+        return self
+    
     def set_dotpath(self, val):
-        self['dotpath'] = val
+        self.schema_state['dotpath'] = val
     
     def get_dotpath(self):
-        return self.get('dotpath', '')
+        return self.schema_state.get('dotpath', '')
     
     dotpath = property(get_dotpath, set_dotpath)
     
     def set_parent(self, val):
-        self['parent'] = val
+        self.schema_state['parent'] = val
     
     def get_parent(self):
-        return self.get('parent', None)
+        return self.schema_state.get('parent', None)
     
     parent = property(get_parent, set_parent)
     
     def set_subobject(self, val):
-        self['subobject'] = val
+        self.schema_state['subobject'] = val
     
     def get_subobject(self):
-        if self.get('subobject') is None and self.parent:
+        if self.schema_state.get('subobject') is None and self.parent:
             if self.dotpath:
                 val = self.parent.instance
                 self.subobject = val.dot_notation_to_value(self.dotpath)
             else:
                 self.subobject = self.parent.instance
-        return self.get('subobject', None)
+        return self.schema_state.get('subobject', None)
     
     subobject = property(get_subobject, set_subobject)
     
@@ -167,7 +180,7 @@ class DotpathEndpointState(DotpathStateMixin, EndpointState):
         '''
         Retrieves the currently active schema, taking into account dynamic typing
         '''
-        if self.get('base_schema', None) is None:
-            self['base_schema'] = super(DotpathEndpointState, self).get_base_schema()
-        return self['base_schema']
+        if self.schema_state.get('base_schema', None) is None:
+            self.schema_state['base_schema'] = super(DotpathEndpointState, self).get_base_schema()
+        return self.schema_state['base_schema']
 
