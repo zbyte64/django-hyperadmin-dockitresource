@@ -46,11 +46,11 @@ class DotpathMixin(DocumentDetailMixin):
             self.object = self.get_object()
         return self.resource.parent.get_resource_item(self.object)
     
-    def create_state(self):
-        state = super(DotpathMixin, self).create_state()
-        state.dotpath = self.kwargs['dotpath']
-        state.parent = self.get_parent_item()
-        return state
+    def get_common_state_data(self):
+        data = super(DotpathMixin, self).get_common_state_data()
+        data['dotpath'] = self.kwargs['dotpath']
+        data['parent'] = self.get_parent_item()
+        return data
     
     def get_item(self):
         if not getattr(self, 'object', None):

@@ -150,10 +150,21 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return endpoints
     
     def get_absolute_url(self):
+        return self.link_prototypes['update'].get_url(item=self.state.item)
+    
+    def get_link(self, **kwargs):
+        #must include endpoint in kwargs
+        link_kwargs = {'rel':'self',
+                       'item':self.state.item,
+                       'prompt':self.get_prompt(),}
+        link_kwargs.update(kwargs)
+        return self.link_prototypes['update'].get_link(**link_kwargs)
+    '''
+    def get_absolute_url(self):
         assert self.state.parent
         assert self.state.dotpath
         return self.reverse('%sdetail' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
-    
+    '''
     def get_create_schema_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
             form_kwargs = {}
@@ -248,6 +259,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     def get_breadcrumbs(self):
         breadcrumbs = self.parent.get_breadcrumbs()
         parent_item = self.state.parent
+        assert parent_item
         breadcrumbs.append(self.parent.get_item_breadcrumb(parent_item))
         #TODO fill all the dotpaths inbetween
         #TODO this part is funky...

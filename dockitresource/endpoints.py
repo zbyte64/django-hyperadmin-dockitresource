@@ -1,5 +1,7 @@
 from hyperadmin.resources.crud.endpoints import ListEndpoint, CreateEndpoint as BaseCreateEndpoint, DetailEndpoint, DeleteEndpoint, CreateLinkPrototype as BaseCreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype
 
+from dockitresource.states import DotpathEndpointState
+
 from dockit.schema.common import UnSet
 
 
@@ -65,10 +67,13 @@ class DotpathDeleteLinkPrototype(DeleteLinkPrototype):
         instance.save()
         return self.on_success()
 
-class DotpathListEndpoint(ListEndpoint):
+class DotpathEndpointMixin(object):
+    state_class = DotpathEndpointState
+
+class DotpathListEndpoint(DotpathEndpointMixin, ListEndpoint):
     pass
 
-class DotpathCreateEndpoint(CreateEndpoint):
+class DotpathCreateEndpoint(DotpathEndpointMixin, CreateEndpoint):
     url_suffix = r'^(?P<dotpath>[\w\.]+)/add/$'
     
     def get_links(self):
@@ -77,7 +82,7 @@ class DotpathCreateEndpoint(CreateEndpoint):
     def get_url(self):
         return super(CreateEndpoint, self).get_url(pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
 
-class DotpathDetailEndpoint(DetailEndpoint):
+class DotpathDetailEndpoint(DotpathEndpointMixin, DetailEndpoint):
     url_suffix = r'^(?P<dotpath>[\w\.]+)/$'
     
     def get_links(self):
@@ -88,7 +93,7 @@ class DotpathDetailEndpoint(DetailEndpoint):
     def get_url(self, item):
         return super(DetailEndpoint, self).get_url(pk=item.instance.pk, dotpath=item.dotpath or self.state.dotpath)
 
-class DotpathDeleteEndpoint(DeleteEndpoint):
+class DotpathDeleteEndpoint(DotpathEndpointMixin, DeleteEndpoint):
     url_suffix = r'^(?P<dotpath>[\w\.]+)/delete/$'
     
     def get_links(self):
