@@ -1,4 +1,4 @@
-from hyperadmin.states import ResourceState, EndpointState
+from hyperadmin.states import EndpointState
 
 from dockit.schema import Schema
 
@@ -109,7 +109,7 @@ class DotpathStateMixin(object):
             return False
         field = self._get_field(self.resource.document, self.dotpath)
         return isinstance(field, schema.ListField)
-
+'''
 class DotpathResourceState(DotpathStateMixin, ResourceState):
     def get_dotpath(self):
         return self.get('dotpath', '')
@@ -131,7 +131,7 @@ class DotpathResourceState(DotpathStateMixin, ResourceState):
         return None
     
     subobject = property(get_subobject)
-
+'''
 class DotpathEndpointState(DotpathStateMixin, EndpointState):
     def set_dotpath(self, val):
         self['dotpath'] = val

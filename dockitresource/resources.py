@@ -6,14 +6,14 @@ from hyperadmin.hyperobjects import Link
 from dockit import forms
 
 from dockitresource import views
-from dockitresource.changelist import DocumentChangeList, DotpathChangeList
+#from dockitresource.changelist import DocumentChangeList, DotpathChangeList
 from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
-from dockitresource.states import DotpathResourceState
+from dockitresource.states import DotpathEndpointState
 from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint, ListEndpoint, CreateEndpoint, DetailEndpoint, DeleteEndpoint
 
 
 class DocumentResourceMixin(object):
-    state_class = DotpathResourceState
+    state_class = DotpathEndpointState
     dotpath_resource = None
     
     @property
@@ -128,7 +128,7 @@ class DocumentResourceMixin(object):
         return SelectSchemaForm
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
-    changelist_class = DotpathChangeList
+    #changelist_class = DotpathChangeList
     resource_item_class = DotpathResourceItem
     list_resource_item_class = DotpathListResourceItem
     
@@ -274,7 +274,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     
     #save_as = False
     #save_on_top = False
-    changelist_class = DocumentChangeList
+    #changelist_class = DocumentChangeList
     dotpath_resource_class = DotpathResource
     
     #list display options
@@ -292,7 +292,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     
     def create_dotpath_resource(self):
         cls = self.get_dotpath_resource_class()
-        return cls(resource_adaptor=self.resource_adaptor, site_state=self.site_state, parent_resource=self)
+        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent=self)
     
     def get_dotpath_resource_class(self):
         return self.dotpath_resource_class
@@ -300,10 +300,10 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     def get_view_endpoints(self):
         endpoints = super(CRUDResource, self).get_view_endpoints()
         endpoints.extend([
-            ListEndpoint(self),
-            CreateEndpoint(self),
-            DetailEndpoint(self),
-            DeleteEndpoint(self),
+            ListEndpoint(resource=self),
+            CreateEndpoint(resource=self),
+            DetailEndpoint(resource=self),
+            DeleteEndpoint(resource=self),
         ])
         return endpoints
     
@@ -444,7 +444,7 @@ class DocumentResource(BaseDocumentResource):
     
     def create_temporary_document_resource(self):
         cls = self.get_temporary_document_resource_class()
-        return cls(resource_adaptor=self.resource_adaptor, site_state=self.site_state, parent_resource=self)
+        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent=self)
     
     def get_temporary_document_resource_class(self):
         return self.temporary_document_resource_class
