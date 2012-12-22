@@ -5,8 +5,6 @@ from hyperadmin.hyperobjects import Link
 
 from dockit import forms
 
-from dockitresource import views
-#from dockitresource.changelist import DocumentChangeList, DotpathChangeList
 from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
 from dockitresource.states import DotpathEndpointState
 from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint, ListEndpoint, CreateEndpoint, DetailEndpoint, DeleteEndpoint
@@ -98,10 +96,14 @@ class DocumentResourceMixin(object):
                 else:
                     dotpath = field.name
                 #we forked but links is pointing somewhere else...
-                inline = self.dotpath_resource.fork_state(dotpath=dotpath, parent=item)
-                subitem = inline.get_resource_item(item.instance, dotpath=dotpath)
-                link = inline.get_item_link(subitem)
-                namespace = DotpathNamespace(name=name, link=link, state=inline.state)
+                #inline = self.dotpath_resource.fork_state(dotpath=dotpath, parent=item)
+                #subitem = inline.get_resource_item(item.instance, dotpath=dotpath)
+                #link = inline.get_item_link(subitem)
+                #namespace = DotpathNamespace(name=name, link=link, state=inline.state)
+                #namespaces[name] = namespace
+                
+                inline = self.dotpath_resource
+                namespace = DotpathNamespace(name=name, endpoint=inline, state_data={'parent':item, 'dotpath':dotpath})
                 namespaces[name] = namespace
         return namespaces
     
@@ -132,22 +134,20 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     resource_item_class = DotpathResourceItem
     list_resource_item_class = DotpathListResourceItem
     
-    list_view = views.DotpathListView
-    add_view = views.DotpathCreateView #TODO this is to append to a dotpath
-    detail_view = views.DotpathDetailView #TODO this needs to double as a list view
-    delete_view = views.DotpathDeleteView #TODO this needs to unlink the dotpath
-    
     def get_base_url_name(self):
         return '%s%s_' % (self.parent.get_base_url_name(), 'dotpath')
     
     def get_view_endpoints(self):
         endpoints = super(CRUDResource, self).get_view_endpoints()
         endpoints.extend([
-            DotpathCreateEndpoint(resource=self),
-            DotpathDetailEndpoint(resource=self),
-            DotpathDeleteEndpoint(resource=self),
+            (DotpathCreateEndpoint, {}),
+            (DotpathDetailEndpoint, {}),
+            (DotpathDeleteEndpoint, {}),
         ])
         return endpoints
+    
+    def get_main_link_name(self):
+        return 'update'
     
     def get_absolute_url(self):
         return self.link_prototypes['update'].get_url(item=self.state.item)
@@ -293,18 +293,13 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     list_per_page = 100
     list_max_show_all = 200
     
-    list_view = views.DocumentListView
-    add_view = views.DocumentCreateView
-    detail_view = views.DocumentDetailView
-    delete_view = views.DocumentDeleteView
-    
     def __init__(self, *args, **kwargs):
         super(BaseDocumentResource, self).__init__(*args, **kwargs)
         self.dotpath_resource = self.create_dotpath_resource()
     
     def create_dotpath_resource(self):
         cls = self.get_dotpath_resource_class()
-        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent=self)
+        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent=self, api_request=self.api_request)
     
     def get_dotpath_resource_class(self):
         return self.dotpath_resource_class
@@ -312,10 +307,10 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     def get_view_endpoints(self):
         endpoints = super(CRUDResource, self).get_view_endpoints()
         endpoints.extend([
-            ListEndpoint(resource=self),
-            CreateEndpoint(resource=self),
-            DetailEndpoint(resource=self),
-            DeleteEndpoint(resource=self),
+            (ListEndpoint, {}),
+            (CreateEndpoint, {}),
+            (DetailEndpoint, {}),
+            (DeleteEndpoint, {}),
         ])
         return endpoints
     
