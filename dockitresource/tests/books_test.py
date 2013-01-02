@@ -134,12 +134,167 @@ class BookTestCase(ResourceTestCase):
         link = call_kwargs['link']
         state = call_kwargs['state']
         
-        #with state.push_session(self.popped_states):
         self.assertTrue(link.form)
         self.assertTrue(link.form.errors)
         
         self.assertTrue(state.item)
         self.assertEqual(state.item.instance, instance)
+    
+class PublisherTestCase(ResourceTestCase):
+    def setUp(self):
+        super(PublisherTestCase, self).setUp()
+        self.setup_fixtures()
+    
+    def setup_fixtures(self):
+        user = self.user
+        addr = Address(street_1='10533 Reagan Rd', city='San Diego', postal_code='92126', country='US', region='CA')
+
+        author = Author(user=user)
+        author.save()
+
+        publisher = Publisher(name='Books etc', address=addr)
+        publisher.save()
+
+        book = Book(title='Of Mice and Men', publisher=publisher)
+        book.authors.append(author)
+        book.save()
+        book.tags.append('historical')
+        book.save()
+    
+    def register_resource(self):
+        self.site.register(Publisher, PublisherResource)
+        return self.site.registry[Publisher]
+    
+    def test_get_list(self):
+        api_request = self.get_api_request()
+        endpoint = self.resource.endpoints['list'].fork(api_request=api_request)
+        response = endpoint.dispatch_api(api_request)
+        
+        call_kwargs = api_request.generate_response.call_args[1]
+        link = call_kwargs['link']
+        state = call_kwargs['state']
+        
+        self.assertEqual(len(state.get_resource_items()), Book.objects.count())
+        
+        #links = state.links.get_filter_links()
+        #self.assertTrue(links, 'filter links are empty')
+        
+        links = state.links.get_breadcrumbs()
+        self.assertTrue(links, 'breadcrumbs are empty')
+        
+        links = state.links.get_outbound_links()
+        self.assertTrue(links, 'outbound links are empty')
+    
+    def test_get_detail(self):
+        instance = Publisher.objects.all()[0]
+        api_request = self.get_api_request(url_kwargs={'pk':instance.pk})
+        endpoint = self.resource.endpoints['detail'].fork(api_request=api_request)
+        response = endpoint.dispatch_api(api_request)
+        
+        call_kwargs = api_request.generate_response.call_args[1]
+        link = call_kwargs['link']
+        state = call_kwargs['state']
+        
+        self.assertEqual(len(state.get_resource_items()), 1)
+        self.assertTrue(state.item)
+        self.assertEqual(state.item.instance, instance)
+        self.assertTrue(link.form)
+        
+        links = state.links.get_breadcrumbs()
+        #TODO check for item breadcrumb
+        self.assertTrue(links, 'breadcrumbs are empty')
+        
+        links = state.item.links.get_item_outbound_links()
+        self.assertTrue(links, 'outbound links are empty')
+    
+    def test_get_detail_404(self):
+        instance = Publisher.objects.all()[0]
+        api_request = self.get_api_request(url_kwargs={'pk':'0'})
+        endpoint = self.resource.endpoints['detail'].fork(api_request=api_request)
+        try:
+            response = endpoint.dispatch_api(api_request)
+        except Http404:
+            pass
+        else:
+            self.fail("Did not return 404 for non-existant object")
+    
+    def test_post_list(self):
+        update_data = {
+            #'name': 'Big Title',
+        }
+        api_request = self.get_api_request(payload={'data': update_data}, method='POST')
+        endpoint = self.resource.endpoints['list'].fork(api_request=api_request)
+        
+        response = endpoint.dispatch_api(api_request)
+        
+        call_kwargs = api_request.generate_response.call_args[1]
+        link = call_kwargs['link']
+        state = call_kwargs['state']
+        
+        self.assertTrue(link.form)
+        self.assertTrue(link.form.errors)
+    
+    def test_post_detail(self):
+        instance = Publisher.objects.all()[0]
+        update_data = {
+            #'name': 'Big Title',
+        }
+        api_request = self.get_api_request(url_kwargs={'pk':instance.pk}, payload={'data': update_data}, method='POST')
+        endpoint = self.resource.endpoints['detail'].fork(api_request=api_request)
+        response = endpoint.dispatch_api(api_request)
+        
+        call_kwargs = api_request.generate_response.call_args[1]
+        link = call_kwargs['link']
+        state = call_kwargs['state']
+        
+        self.assertTrue(link.form, repr(link))
+        self.assertTrue(link.form.errors)
+        
+        self.assertTrue(state.item)
+        self.assertEqual(state.item.instance, instance)
+    
+    def test_add_does_not_leak_state(self):
+        """
+        Tests for a specific state leak
+        """
+        api_request = self.get_api_request()
+        endpoint = self.resource.endpoints['add'].fork(api_request=api_request)
+        response = endpoint.dispatch_api(api_request)
+        
+        call_kwargs = api_request.generate_response.call_args[1]
+        link = call_kwargs['link']
+        state = call_kwargs['state']
+        
+        self.assertFalse(state.get_resource_items())
+        
+        self.assertFalse(state.item)
+        
+        ns = state.get_namespaces()
+        self.assertFalse(ns)
+    
+    def test_get_detail_does_not_leak_state(self):
+        """
+        Tests for a specific state leak
+        """
+        instance = Publisher.objects.all()[0]
+        api_request = self.get_api_request(url_kwargs={'pk':instance.pk})
+        endpoint = self.resource.endpoints['detail'].fork(api_request=api_request)
+        response = endpoint.dispatch_api(api_request)
+        
+        api_request = self.get_api_request()
+        endpoint = self.resource.endpoints['add'].fork(api_request=api_request)
+        response = endpoint.dispatch_api(api_request)
+        
+        call_kwargs = api_request.generate_response.call_args[1]
+        link = call_kwargs['link']
+        state = call_kwargs['state']
+        
+        self.assertFalse(state.get_resource_items())
+        
+        self.assertFalse(state.item)
+        
+        ns = state.get_namespaces()
+        self.assertFalse(ns)
 
 '''
 class PolymorphismTestCase(unittest.TestCase):
