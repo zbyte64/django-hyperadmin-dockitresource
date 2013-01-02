@@ -36,7 +36,7 @@ class Publisher(Document):
 
 class Book(Document):
     title = TextField()
-    cover_image = FileField(upload_to='book-images')
+    cover_image = FileField(upload_to='book-images', blank=True, null=True)
     year = IntegerField()
     publisher = ReferenceField(Publisher)
     authors = ListField(ReferenceField(Author), db_index=True)
