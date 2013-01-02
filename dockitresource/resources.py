@@ -104,6 +104,13 @@ class DocumentResourceMixin(object):
                 
                 inline = self.dotpath_resource
                 namespace = DotpathNamespace(name=name, endpoint=inline, state_data={'parent':item, 'dotpath':dotpath})
+                try:
+                    item = namespace.endpoint.get_resource_item(instance=item.instance, dotpath=dotpath)
+                    assert item
+                    namespace.endpoint.state['item'] = item
+                except Exception as error:
+                    print error
+                    raise
                 namespaces[name] = namespace
         return namespaces
     
@@ -153,6 +160,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return self.link_prototypes['update'].get_url(item=self.state.item)
     
     def get_link(self, **kwargs):
+        assert self.state.item
         #must include endpoint in kwargs
         link_kwargs = {'rel':'self',
                        'item':self.state.item,
@@ -210,6 +218,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             return self.form_class
         
         effective_dotpath = dotpath
+        effective_schema = self.schema
         
         if effective_dotpath is None:
             effective_dotpath = self.state.dotpath
@@ -217,10 +226,8 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             if self.state.is_sublisting: #this means we are adding
                 index = len(self.state.subobject)
                 effective_dotpath = '%s.%s' % (effective_dotpath, index)
-        
-        effective_schema = self.schema
-        if subobject:
-            effective_schema = type(subobject)
+            elif subobject:
+                effective_schema = type(subobject)
         
         class AdminForm(forms.DocumentForm):
             class Meta:

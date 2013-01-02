@@ -119,12 +119,80 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     
     'hyperadmin',
+    'dockit',
+    'dockit.backends.djangodocument',
     'dockitresource',
     # Uncomment the next line to enable the admin:
     'django.contrib.admin',
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
 ]
+
+DOCKIT_BACKENDS = {
+    'default': {
+        'ENGINE': 'dockit.backends.djangodocument.backend.ModelDocumentStorage',
+    },
+    'djangodocument': {
+        'ENGINE': 'dockit.backends.djangodocument.backend.ModelDocumentStorage',
+    },
+}
+
+DOCKIT_INDEX_BACKENDS = {
+    'default': {
+        'ENGINE': 'dockit.backends.djangodocument.backend.ModelIndexStorage',
+    },
+    'djangodocument': {
+        'ENGINE': 'dockit.backends.djangodocument.backend.ModelIndexStorage',
+    },
+}
+
+try:
+    import pymongo
+except ImportError:
+    pass
+else:
+    INSTALLED_APPS.append('dockit.backends.mongo')
+    DOCKIT_BACKENDS['mongo'] = {
+        'ENGINE':'dockit.backends.mongo.backend.MongoDocumentStorage',
+        'HOST':'localhost',
+        'DB':'testdb',
+        'PORT': 27017,
+    }
+    
+    DOCKIT_INDEX_BACKENDS['mongo'] = {
+        'ENGINE':'dockit.backends.mongo.backend.MongoIndexStorage',
+        'HOST':'localhost',
+        'DB':'testdb',
+        'PORT': 27017,
+    }
+
+if 'TRAVIS' in os.environ:
+    DOCKIT_BACKENDS['mongo'] = {'ENGINE':'dockit.backends.mongo.backend.MongoDocumentStorage',
+                                'USER':'travis',
+                                'PASSWORD':'test',
+                                'DB':'mydb_test',
+                                'HOST':'127.0.0.1',
+                                'PORT':27017,}
+    DOCKIT_INDEX_BACKENDS['mongo'] = {'ENGINE':'dockit.backends.mongo.backend.MongoIndexStorage',
+                                'USER':'travis',
+                                'PASSWORD':'test',
+                                'DB':'mydb_test',
+                                'HOST':'127.0.0.1',
+                                'PORT':27017,}
+    if 'dockit.backends.mongo' not in INSTALLED_APPS:
+        INSTALLED_APPS.append('dockit.backends.mongo')
+
+if os.environ.get('TASK_BACKEND', None) == 'celery':
+    DOCKIT_INDEX_BACKENDS['djangodocument']['INDEX_TASKS'] = 'dockit.backends.djangodocument.tasks.CeleryIndexTasks'
+    INSTALLED_APPS += ["djcelery"]
+    CELERY_ALWAYS_EAGER = True
+    
+    import djcelery
+    djcelery.setup_loader()
+if os.environ.get('TASK_BACKEND', None) == 'ztask':
+    DOCKIT_INDEX_BACKENDS['djangodocument']['INDEX_TASKS'] = 'dockit.backends.djangodocument.tasks.ZTaskIndexTasks'
+    INSTALLED_APPS += ["django_ztask"]
+    ZTASKD_ALWAYS_EAGER = True
 
 # A sample logging configuration. The only tangible logging
 # performed by this configuration is to send an email to

@@ -36,6 +36,7 @@ class DotpathMixin(DocumentDetailMixin):
         data = super(DotpathMixin, self).get_common_state_data()
         data['dotpath'] = self.kwargs['dotpath']
         data['parent'] = self.get_parent_item()
+        data['item'] = self.get_item()
         return data
     
     def get_item(self):
@@ -160,7 +161,7 @@ class DotpathDetailEndpoint(DotpathMixin, DetailEndpoint):
         return super(DotpathDetailEndpoint, self).handle_link_submission(api_request)
     
     def dispatch_list(self, api_request):
-        endpoint = DotpathListEndpoint(parent=self.parent, api_request=self.api_request)
+        endpoint = DotpathListEndpoint(parent=self.parent, api_request=self.api_request, name_suffix=self.name_suffix)
         return endpoint.dispatch_api(api_request)
 
 class DotpathDeleteEndpoint(DotpathMixin, DeleteEndpoint):
