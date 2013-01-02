@@ -5,7 +5,7 @@ from hyperadmin.hyperobjects import Link
 
 from dockit import forms
 
-from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem
+from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem, DotpathResourceSubitem
 from dockitresource.states import DotpathEndpointState
 from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint, ListEndpoint, CreateEndpoint, DetailEndpoint, DeleteEndpoint
 
@@ -139,6 +139,7 @@ class DocumentResourceMixin(object):
 class DotpathResource(DocumentResourceMixin, CRUDResource):
     #changelist_class = DotpathChangeList
     resource_item_class = DotpathResourceItem
+    resource_subitem_class = DotpathResourceSubitem
     list_resource_item_class = DotpathListResourceItem
     
     def get_base_url_name(self):
@@ -167,12 +168,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
                        'prompt':self.get_prompt(),}
         link_kwargs.update(kwargs)
         return self.link_prototypes['update'].get_link(**link_kwargs)
-    '''
-    def get_absolute_url(self):
-        assert self.state.parent
-        assert self.state.dotpath
-        return self.reverse('%sdetail' % self.get_base_url_name(), pk=self.state.parent.instance.pk, dotpath=self.state.dotpath)
-    '''
+    
     def get_create_schema_link(self, item, form_kwargs=None, **kwargs):
         if form_kwargs is None:
             form_kwargs = {}
@@ -193,14 +189,20 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         item = self.state.parent
         if self.state.is_sublisting:
             instances = self.state.subobject
-            if self.state.get('view_class', None) == 'change_list':
+            if self.state.get('resource_class', None) == 'change_list':
                 return [self.get_list_resource_item(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
             return [self.get_resource_item(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
         else:
-            if self.state.get('view_class', None) == 'change_list':
+            if self.state.get('resource_class', None) == 'change_list':
                 return [self.get_list_resource_item(item.instance, dotpath=dotpath)]
             return [self.get_resource_item(item.instance, dotpath=dotpath)]
-        
+    
+    def get_resource_subitem_class(self):
+        return self.resource_subitem_class
+    
+    def get_resource_subitem(self, instance, **kwargs):
+        kwargs.setdefault('endpoint', self)
+        return self.get_resource_subitem_class()(instance=instance, **kwargs)
     
     def get_excludes(self):
         excludes = set()
@@ -239,30 +241,6 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
                 #TODO fields
         return AdminForm
     
-    def show_create_link(self):
-        return not self.state.has_view_class('change_form') and (not self.state.item or self.state.is_sublisting)
-    
-    def show_delete_link(self, item):
-        return super(DotpathResource, self).show_delete_link(item) and not self.state.has_view_class('add_form')
-    '''
-    def get_idempotent_links(self):
-        links = self.create_link_collection()
-        if self.show_create_link() and not self.state.item: #only display a create link if we are not viewing a specific item
-            if not self.schema_select:
-                links.append(self.get_create_link(item=self.state.parent))
-        return links
-    
-    def get_outbound_links(self):
-        links = super(CRUDResource, self).get_outbound_links()
-        if self.show_create_link() and not self.state.item:
-            print links.add_link('create'), self.link_prototypes, self.endpoints
-            links.append(self.link_prototypes['create'].get_link())
-        #    if self.schema_select:
-        #        links.extend(self.get_typed_add_links(item=self.state.parent, include_form_params_in_url=True))
-        #    else:
-        #        links.append(self.get_create_link(item=self.state.parent, link_factor='LO'))
-        return links
-    '''
     def get_breadcrumbs(self):
         breadcrumbs = self.parent.get_breadcrumbs()
         parent_item = self.state.parent

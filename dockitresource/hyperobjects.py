@@ -32,9 +32,9 @@ class DotpathListResourceItem(ListResourceItem):
 class DotpathNamespace(Namespace):
     pass
 
-class DotpathResourceItem(ResourceItem):
+class DotpathResourceSubitem(ResourceItem):
     def __init__(self, dotpath=None, **kwargs):
-        super(DotpathResourceItem, self).__init__(**kwargs)
+        super(DotpathResourceSubitem, self).__init__(**kwargs)
         assert dotpath
         self.dotpath = dotpath
     
@@ -49,4 +49,12 @@ class DotpathResourceItem(ResourceItem):
             val = self.instance
             return val.dot_notation_to_value(self.dotpath)
         return self.instance
+
+class DotpathResourceItem(DotpathResourceSubitem):
+    def get_resource_items(self):
+        if self.state.is_sublisting:
+            instances = self.subobject
+            dotpath = self.dotpath
+            return [self.resource.get_resource_subitem(self.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
+        return [self.resource.get_resource_subitem(self.instance, dotpath=self.dotpath)]
 

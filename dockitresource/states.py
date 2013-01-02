@@ -170,4 +170,3 @@ class DotpathEndpointState(DotpathStateMixin, EndpointState):
         if self.get('base_schema', None) is None:
             self['base_schema'] = super(DotpathEndpointState, self).get_base_schema()
         return self['base_schema']
-

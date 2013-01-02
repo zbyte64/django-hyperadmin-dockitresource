@@ -57,7 +57,13 @@ class DotpathMixin(DocumentDetailMixin):
         return kwargs
     
     def get_url(self, item=None):
-        return self.reverse(self.get_url_name(), pk=self.common_state.parent.instance.pk, dotpath=self.common_state.dotpath)
+        if item:
+            pk = item.instance.pk
+            dotpath = item.dotpath
+        else:
+            pk = self.common_state.parent.instance.pk
+            dotpath = self.common_state.dotpath
+        return self.reverse(self.get_url_name(), pk=pk, dotpath=dotpath)
 
 class CreateLinkPrototype(BaseCreateLinkPrototype):
     def get_link_kwargs(self, **kwargs):
