@@ -13,6 +13,10 @@ class DocumentMixin(object):
     
     def get_queryset(self):
         return self.resource.get_queryset(self.api_request.user)
+    
+    def get_resource_subitem(self, instance, **kwargs):
+        kwargs.setdefault('endpoint', self)
+        return self.resource.get_resource_subitem(instance, **kwargs)
 
 class DocumentDetailMixin(DocumentMixin, SingleObjectMixin):
     def get_object(self):
@@ -43,7 +47,7 @@ class DotpathMixin(DocumentDetailMixin):
         if not getattr(self, 'object', None):
             self.object = self.get_object()
         dotpath = self.kwargs['dotpath']
-        return self.resource.get_resource_item(self.object, dotpath=dotpath)
+        return self.get_resource_item(self.object, dotpath=dotpath)
     
     #def get_state_data(self):
     #    data = super(DotpathMixin, self).get_state_data()
@@ -161,13 +165,15 @@ class DotpathDetailEndpoint(DotpathMixin, DetailEndpoint):
     update_prototype = DotpathUpdateLinkPrototype
     delete_prototype = DotpathDeleteLinkPrototype
     
+    list_endpoint = DotpathListEndpoint
+    
     def handle_link_submission(self, api_request):
         if self.is_sublisting:
             return self.dispatch_list(api_request)
         return super(DotpathDetailEndpoint, self).handle_link_submission(api_request)
     
     def dispatch_list(self, api_request):
-        endpoint = DotpathListEndpoint(parent=self.parent, api_request=self.api_request, name_suffix=self.name_suffix)
+        endpoint = self.list_endpoint(parent=self.parent, api_request=self.api_request, name_suffix=self.name_suffix)
         return endpoint.dispatch_api(api_request)
 
 class DotpathDeleteEndpoint(DotpathMixin, DeleteEndpoint):

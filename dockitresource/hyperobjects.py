@@ -55,6 +55,6 @@ class DotpathResourceItem(DotpathResourceSubitem):
         if self.state.is_sublisting:
             instances = self.subobject
             dotpath = self.dotpath
-            return [self.resource.get_resource_subitem(self.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
-        return [self.resource.get_resource_subitem(self.instance, dotpath=self.dotpath)]
+            return [self.endpoint.get_resource_subitem(self.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
+        return [self.endpoint.get_resource_subitem(self.instance, dotpath=self.dotpath)]
 
