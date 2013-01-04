@@ -40,11 +40,6 @@ class DocumentResourceMixin(object):
     def get_prompt(self):
         return self.resource_name
     
-    def get_view_kwargs(self):
-        kwargs = super(DocumentResourceMixin, self).get_view_kwargs()
-        kwargs['document'] = self.document
-        return kwargs
-    
     def _get_schema_fields(self):
         for field in self.schema._meta.fields.itervalues():
             if getattr(field, 'schema', None):

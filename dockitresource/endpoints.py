@@ -1,73 +1,9 @@
-from django.views.generic.detail import SingleObjectMixin
-
-from hyperadmin.resources.crud.endpoints import ListEndpoint as BaseListEndpoint, CreateEndpoint as BaseCreateEndpoint, DetailEndpoint as BaseDetailEndpoint, DeleteEndpoint as BaseDeleteEndpoint, CreateLinkPrototype as BaseCreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype
+from hyperadmin.resources.crud.endpoints import ListEndpoint, CreateEndpoint as BaseCreateEndpoint, DetailEndpoint, DeleteEndpoint, CreateLinkPrototype as BaseCreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype
 
 from dockitresource.states import DotpathEndpointState
 
 from dockit.schema.common import UnSet
 
-
-class DocumentMixin(object):
-    document = None
-    queryset = None
-    
-    def get_queryset(self):
-        return self.resource.get_queryset(self.api_request.user)
-    
-    def get_resource_subitem(self, instance, **kwargs):
-        kwargs.setdefault('endpoint', self)
-        return self.resource.get_resource_subitem(instance, **kwargs)
-
-class DocumentDetailMixin(DocumentMixin, SingleObjectMixin):
-    def get_object(self):
-        if not hasattr(self, 'object'):
-            self.object = SingleObjectMixin.get_object(self)
-        return self.object
-
-class DotpathMixin(DocumentDetailMixin):
-    state_class = DotpathEndpointState
-    
-    @property
-    def is_sublisting(self):
-        return self.state.is_sublisting
-    
-    def get_parent_item(self):
-        if not getattr(self, 'object', None):
-            self.object = self.get_object()
-        return self.resource.parent.get_resource_item(self.object)
-    
-    def get_common_state_data(self):
-        data = super(DotpathMixin, self).get_common_state_data()
-        data['dotpath'] = self.kwargs['dotpath']
-        data['parent'] = self.get_parent_item()
-        data['item'] = self.get_item()
-        return data
-    
-    def get_item(self):
-        if not getattr(self, 'object', None):
-            self.object = self.get_object()
-        dotpath = self.kwargs['dotpath']
-        return self.get_resource_item(self.object, dotpath=dotpath)
-    
-    #def get_state_data(self):
-    #    data = super(DotpathMixin, self).get_state_data()
-    #    data['parent'] = self.get_parent_item()
-    #    return data
-    
-    def get_link_kwargs(self, **kwargs):
-        kwargs = super(DotpathMixin, self).get_link_kwargs(**kwargs)
-        if 'item' not in kwargs:
-            kwargs['item'] = self.get_item()
-        return kwargs
-    
-    def get_url(self, item=None):
-        if item:
-            pk = item.instance.pk
-            dotpath = item.dotpath
-        else:
-            pk = self.common_state.parent.instance.pk
-            dotpath = self.common_state.dotpath
-        return self.reverse(self.get_url_name(), pk=pk, dotpath=dotpath)
 
 class CreateLinkPrototype(BaseCreateLinkPrototype):
     def get_link_kwargs(self, **kwargs):
@@ -101,17 +37,8 @@ class CreateLinkPrototype(BaseCreateLinkPrototype):
         link_kwargs.update(kwargs)
         return super(CreateLinkPrototype, self).get_link_kwargs(**link_kwargs)
 
-class CreateEndpoint(DocumentMixin, BaseCreateEndpoint):
+class CreateEndpoint(BaseCreateEndpoint):
     create_prototype = CreateLinkPrototype
-
-class ListEndpoint(DocumentMixin, BaseListEndpoint):
-    pass
-
-class DetailEndpoint(DocumentDetailMixin, BaseDetailEndpoint):
-    pass
-
-class DeleteEndpoint(DocumentDetailMixin, BaseDeleteEndpoint):
-    pass
 
 class DotpathCreateLinkPrototype(CreateLinkPrototype):
     def handle_submission(self, link, submit_kwargs):
@@ -139,6 +66,63 @@ class DotpathDeleteLinkPrototype(DeleteLinkPrototype):
         instance.save()
         return self.on_success()
 
+class DotpathMixin(object):
+    state_class = DotpathEndpointState
+    parent_index_name = 'primary'
+    
+    def get_resource_subitem(self, instance, **kwargs):
+        kwargs.setdefault('endpoint', self)
+        return self.resource.get_resource_subitem(instance, **kwargs)
+    
+    def get_parent_index(self):
+        if 'parent_index' not in self.state:
+            self.state['parent_index'] = self.resource.parent.get_index(self.parent_index_name)
+            self.state['parent_index'].populate_state()
+        return self.state['parent_index']
+    
+    def get_parent_instance(self):
+        if not hasattr(self, '_parent_instance'):
+            #todo pick kwargs based on index params
+            self._parent_instance = self.get_parent_index().get(pk=self.kwargs['pk'])
+        return self._parent_instance
+    
+    @property
+    def is_sublisting(self):
+        return self.state.is_sublisting
+    
+    def get_parent_item(self):
+        return self.resource.parent.get_resource_item(self.get_parent_instance())
+    
+    def get_common_state_data(self):
+        data = super(DotpathMixin, self).get_common_state_data()
+        data['dotpath'] = self.kwargs['dotpath']
+        data['parent'] = self.get_parent_item()
+        data['item'] = self.get_item()
+        return data
+    
+    def get_item(self):
+        dotpath = self.kwargs['dotpath']
+        return self.get_resource_item(self.get_parent_instance(), dotpath=dotpath)
+    
+    #def get_state_data(self):
+    #    data = super(DotpathMixin, self).get_state_data()
+    #    data['parent'] = self.get_parent_item()
+    #    return data
+    
+    def get_link_kwargs(self, **kwargs):
+        kwargs = super(DotpathMixin, self).get_link_kwargs(**kwargs)
+        if 'item' not in kwargs:
+            kwargs['item'] = self.get_item()
+        return kwargs
+    
+    def get_url(self, item=None):
+        if item:
+            pk = item.instance.pk
+            dotpath = item.dotpath
+        else:
+            pk = self.common_state.parent.instance.pk
+            dotpath = self.common_state.dotpath
+        return self.reverse(self.get_url_name(), pk=pk, dotpath=dotpath)
 
 class DotpathListEndpoint(DotpathMixin, ListEndpoint):
     def get_meta(self):
@@ -152,7 +136,6 @@ class DotpathListEndpoint(DotpathMixin, ListEndpoint):
         for field in form:
             data['display_fields'].append({'prompt':field.label})
         return data
-
 
 class DotpathCreateEndpoint(DotpathMixin, CreateEndpoint):
     url_suffix = r'^(?P<dotpath>[\w\.]+)/add/$'
