@@ -8,6 +8,7 @@ from dockit import forms
 from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem, DotpathResourceSubitem
 from dockitresource.states import DotpathEndpointState
 from dockitresource.endpoints import DotpathCreateEndpoint, DotpathDetailEndpoint, DotpathDeleteEndpoint, ListEndpoint, CreateEndpoint, DetailEndpoint, DeleteEndpoint
+from dockitresource.indexes import DotpathIndex
 
 
 class DocumentResourceMixin(object):
@@ -135,6 +136,8 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     resource_item_class = DotpathResourceItem
     resource_subitem_class = DotpathResourceSubitem
     list_resource_item_class = DotpathListResourceItem
+    rel_name = 'dotpath'
+    #TODO dotpath index
     
     def get_base_url_name(self):
         return '%s%s_' % (self.parent.get_base_url_name(), 'dotpath')
@@ -147,6 +150,12 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             (DotpathDeleteEndpoint, {}),
         ])
         return endpoints
+    
+    def get_indexes(self):
+        return {'primary':DotpathIndex('primary', self)}
+    
+    #def get_primary_query(self):
+    #    return StorageQuery(self.storage)
     
     def get_main_link_name(self):
         return 'update'
@@ -295,7 +304,7 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     def get_extra_urls(self):
         urlpatterns = super(BaseDocumentResource, self).get_extra_urls()
         urlpatterns += patterns('',
-            url(r'^(?P<pk>\w+)/dotpath/',
+            url(r'',
                 include(self.dotpath_resource.urls)),
         )
         return urlpatterns

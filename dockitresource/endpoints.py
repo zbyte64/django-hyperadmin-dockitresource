@@ -1,4 +1,4 @@
-from hyperadmin.resources.crud.endpoints import ListEndpoint, CreateEndpoint as BaseCreateEndpoint, DetailEndpoint, DeleteEndpoint, CreateLinkPrototype as BaseCreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype
+from hyperadmin.resources.crud.endpoints import ListEndpoint, CreateEndpoint as BaseCreateEndpoint, DetailEndpoint, DeleteEndpoint, CreateLinkPrototype as BaseCreateLinkPrototype, UpdateLinkPrototype, DeleteLinkPrototype, IndexMixin
 
 from dockitresource.states import DotpathEndpointState
 
@@ -66,32 +66,74 @@ class DotpathDeleteLinkPrototype(DeleteLinkPrototype):
         instance.save()
         return self.on_success()
 
-class DotpathMixin(object):
+class DotpathMixin(IndexMixin):
     state_class = DotpathEndpointState
     parent_index_name = 'primary'
-    
-    def get_resource_subitem(self, instance, **kwargs):
-        kwargs.setdefault('endpoint', self)
-        return self.resource.get_resource_subitem(instance, **kwargs)
+    parent_url_param_map = {}
+    url_param_map = {}
     
     def get_parent_index(self):
+        if not self.api_request:
+            return self.resource.parent.get_index(self.parent_index_name)
         if 'parent_index' not in self.state:
             self.state['parent_index'] = self.resource.parent.get_index(self.parent_index_name)
             self.state['parent_index'].populate_state()
         return self.state['parent_index']
     
+    def get_url_param_map(self):
+        return dict(self.url_param_map)
+    
+    def get_parent_url_param_map(self):
+        return dict(self.parent_url_param_map)
+    
+    def get_url_suffix_parts(self):
+        param_map = self.get_parent_url_param_map()
+        parts = self.get_parent_index().get_url_params(param_map)
+        parts.append(self.resource.rel_name)
+        param_map = self.get_url_param_map()
+        parts.extend(self.get_index().get_url_params(param_map))
+        return parts
+    
+    def get_url_suffix(self):
+        #CONSIDER: the parent endpoint is both a resource and a detail endpoint of another resource
+        #if we roll the url then we should lookup the details from the parent endpoint/resource
+        parts = self.get_url_suffix_parts()
+        url_suffix = '/'.join(parts)
+        url_suffix = '^%s%s' % (url_suffix, self.url_suffix)
+        return url_suffix
+    
     def get_parent_instance(self):
-        if not hasattr(self, '_parent_instance'):
-            #todo pick kwargs based on index params
-            self._parent_instance = self.get_parent_index().get(pk=self.kwargs['pk'])
-        return self._parent_instance
+        if 'parent' in self.common_state:
+            return self.common_state['parent'].instance
+        #todo pick kwargs based on index params
+        return self.get_parent_index().get(pk=self.kwargs['pk'])
+    
+    def get_parent_item(self):
+        return self.resource.parent.get_resource_item(self.get_parent_instance())
+    
+    def get_url_params_from_parent(self, item):
+        param_map = self.get_parent_url_param_map()
+        return self.get_parent_index().get_url_params_from_item(item, param_map)
+    
+    def get_url_params_from_item(self, item):
+        param_map = self.get_url_param_map()
+        return self.get_index().get_url_params_from_item(item, param_map)
+    
+    def get_url(self, item=None):
+        if item is None:
+            item = self.state.item
+        parent_item = self.get_parent_item()
+        params = self.get_url_params_from_parent(parent_item)
+        params.update(self.get_url_params_from_item(item))
+        return self.reverse(self.get_url_name(), **params)
+    
+    def get_resource_subitem(self, instance, **kwargs):
+        kwargs.setdefault('endpoint', self)
+        return self.resource.get_resource_subitem(instance, **kwargs)
     
     @property
     def is_sublisting(self):
         return self.state.is_sublisting
-    
-    def get_parent_item(self):
-        return self.resource.parent.get_resource_item(self.get_parent_instance())
     
     def get_common_state_data(self):
         data = super(DotpathMixin, self).get_common_state_data()
@@ -109,15 +151,6 @@ class DotpathMixin(object):
         if 'item' not in kwargs:
             kwargs['item'] = self.get_item()
         return kwargs
-    
-    def get_url(self, item=None):
-        if item:
-            pk = item.instance.pk
-            dotpath = item.dotpath
-        else:
-            pk = self.common_state.parent.instance.pk
-            dotpath = self.common_state.dotpath
-        return self.reverse(self.get_url_name(), pk=pk, dotpath=dotpath)
 
 class DotpathListEndpoint(DotpathMixin, ListEndpoint):
     def get_meta(self):
@@ -133,13 +166,9 @@ class DotpathListEndpoint(DotpathMixin, ListEndpoint):
         return data
 
 class DotpathCreateEndpoint(DotpathMixin, CreateEndpoint):
-    url_suffix = r'^(?P<dotpath>[\w\.]+)/add/$'
-    
     create_prototype = DotpathCreateLinkPrototype
 
 class DotpathDetailEndpoint(DotpathMixin, DetailEndpoint):
-    url_suffix = r'^(?P<dotpath>[\w\.]+)/$'
-    
     update_prototype = DotpathUpdateLinkPrototype
     delete_prototype = DotpathDeleteLinkPrototype
     
@@ -155,6 +184,4 @@ class DotpathDetailEndpoint(DotpathMixin, DetailEndpoint):
         return endpoint.dispatch_api(api_request)
 
 class DotpathDeleteEndpoint(DotpathMixin, DeleteEndpoint):
-    url_suffix = r'^(?P<dotpath>[\w\.]+)/delete/$'
-    
     delete_prototype = DotpathDeleteLinkPrototype

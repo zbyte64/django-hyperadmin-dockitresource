@@ -109,29 +109,7 @@ class DotpathStateMixin(object):
             return False
         field = self._get_field(self.resource.document, self.dotpath)
         return isinstance(field, schema.ListField)
-'''
-class DotpathResourceState(DotpathStateMixin, ResourceState):
-    def get_dotpath(self):
-        return self.get('dotpath', '')
-    
-    dotpath = property(get_dotpath)
-    
-    def get_parent(self):
-        return self.get('parent', None)
-    
-    parent = property(get_parent)
-    
-    def get_subobject(self):
-        if self.parent:
-            if self.dotpath:
-                val = self.parent.instance
-                return val.dot_notation_to_value(self.dotpath)
-            else:
-                return self.parent.instance
-        return None
-    
-    subobject = property(get_subobject)
-'''
+
 class DotpathEndpointState(DotpathStateMixin, EndpointState):
     def set_dotpath(self, val):
         self['dotpath'] = val
