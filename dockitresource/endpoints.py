@@ -104,11 +104,6 @@ class DotpathMixin(object):
         dotpath = self.kwargs['dotpath']
         return self.get_resource_item(self.get_parent_instance(), dotpath=dotpath)
     
-    #def get_state_data(self):
-    #    data = super(DotpathMixin, self).get_state_data()
-    #    data['parent'] = self.get_parent_item()
-    #    return data
-    
     def get_link_kwargs(self, **kwargs):
         kwargs = super(DotpathMixin, self).get_link_kwargs(**kwargs)
         if 'item' not in kwargs:
