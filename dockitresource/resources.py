@@ -132,7 +132,6 @@ class DocumentResourceMixin(object):
         return SelectSchemaForm
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
-    #changelist_class = DotpathChangeList
     resource_item_class = DotpathResourceItem
     resource_subitem_class = DotpathResourceSubitem
     list_resource_item_class = DotpathListResourceItem
@@ -266,7 +265,6 @@ class BaseDocumentResource(DocumentResourceMixin, CRUDResource):
     
     #save_as = False
     #save_on_top = False
-    #changelist_class = DocumentChangeList
     dotpath_resource_class = DotpathResource
     
     #list display options
