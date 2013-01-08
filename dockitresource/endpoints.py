@@ -164,9 +164,16 @@ class DotpathListEndpoint(DotpathMixin, ListEndpoint):
         for field in form:
             data['display_fields'].append({'prompt':field.label})
         return data
+    
+    def get_link_prototypes_per_method(self):
+        return {'GET': self.link_prototypes['update'],
+                'POST': self.link_prototypes['update'],
+                'DELETE': self.link_prototypes['rest-delete'],
+                'PUT': self.link_prototypes['rest-update'],}
 
 class DotpathCreateEndpoint(DotpathMixin, CreateEndpoint):
     create_prototype = DotpathCreateLinkPrototype
+    url_suffix = r'/add/$'
 
 class DotpathDetailEndpoint(DotpathMixin, DetailEndpoint):
     update_prototype = DotpathUpdateLinkPrototype
