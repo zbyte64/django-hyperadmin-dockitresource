@@ -153,6 +153,13 @@ class DotpathMixin(IndexMixin):
         return kwargs
 
 class DotpathListEndpoint(DotpathMixin, ListEndpoint):
+    prototype_method_map = {
+        'GET': 'update',
+        'POST': 'update',
+        'PUT': 'rest-update',
+        'DELETE': 'rest-delete',
+    }
+    
     def get_meta(self):
         dotpath = self.state.dotpath
         if self.is_sublisting:
@@ -164,12 +171,6 @@ class DotpathListEndpoint(DotpathMixin, ListEndpoint):
         for field in form:
             data['display_fields'].append({'prompt':field.label})
         return data
-    
-    def get_link_prototypes_per_method(self):
-        return {'GET': self.link_prototypes['update'],
-                'POST': self.link_prototypes['update'],
-                'DELETE': self.link_prototypes['rest-delete'],
-                'PUT': self.link_prototypes['rest-update'],}
 
 class DotpathCreateEndpoint(DotpathMixin, CreateEndpoint):
     create_prototype = DotpathCreateLinkPrototype
