@@ -1,7 +1,7 @@
 from django.conf.urls.defaults import patterns, url, include
 
-from hyperadmin.resources.crud.crud import CRUDResource
-from hyperadmin.hyperobjects import Link
+from hyperadmin.resources.crud import CRUDResource
+from hyperadmin.links import Link
 
 from dockit import forms
 
