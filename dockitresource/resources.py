@@ -139,10 +139,6 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     rel_name = 'dotpath'
     #TODO dotpath index
     
-    def post_register(self):
-        self._site.record_resource(self)
-        super(DotpathResource, self).post_register()
-    
     def get_base_url_name(self):
         return '%s%s_' % (self.parent.get_base_url_name(), 'dotpath')
     
@@ -442,7 +438,7 @@ class DocumentResource(BaseDocumentResource):
     
     def create_temporary_document_resource(self):
         cls = self.get_temporary_document_resource_class()
-        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent=self)
+        return cls(resource_adaptor=self.resource_adaptor, site=self.site, parent=self, api_request=self.api_request)
     
     def get_temporary_document_resource_class(self):
         return self.temporary_document_resource_class
