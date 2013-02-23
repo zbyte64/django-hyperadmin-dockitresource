@@ -157,8 +157,9 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     #def get_primary_query(self):
     #    return StorageQuery(self.storage)
     
-    def get_main_link_name(self):
-        return 'update'
+    def get_index_endpoint(self):
+        eps = self.endpoints
+        return self.endpoints['detail']
     
     def get_absolute_url(self):
         return self.link_prototypes['update'].get_url(item=self.state.item)
