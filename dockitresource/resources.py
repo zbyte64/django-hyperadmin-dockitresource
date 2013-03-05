@@ -451,4 +451,26 @@ class DocumentResource(BaseDocumentResource):
                 include(self.temporary_document_resource.urls)),
         )
         return urlpatterns
-
+    
+    def has_add_permission(self):
+        opts = self.opts
+        user = self.api_request.user
+        return user.has_perm('dockit.'+ opts.get_add_permission())
+    
+    def has_change_permission(self, item=None):
+        opts = self.opts
+        user = self.api_request.user
+        if item:
+            obj = item.instance
+        else:
+            obj = None
+        return user.has_perm('dockit.'+ opts.get_change_permission(), obj)
+    
+    def has_delete_permission(self, item=None):
+        opts = self.opts
+        user = self.api_request.user
+        if item:
+            obj = item.instance
+        else:
+            obj = None
+        return user.has_perm('dockit.'+ opts.get_delete_permission(), obj)

@@ -50,7 +50,7 @@ class BookTestCase(ResourceTestCase):
         book.save()
     
     def register_resource(self):
-        self.site.register(Book, BookResource)
+        self.site.register(Book, BookResource, app_name='books')
         return self.site.registry[Book]
     
     def test_get_list(self):
@@ -162,7 +162,7 @@ class PublisherTestCase(ResourceTestCase):
         book.save()
     
     def register_resource(self):
-        self.site.register(Publisher, PublisherResource)
+        self.site.register(Publisher, PublisherResource, app_name='books')
         return self.site.registry[Publisher]
     
     def test_get_list(self):
