@@ -1,9 +1,12 @@
 from hyperadmin.tests.test_resources import ResourceTestCase
 
 from django.http import Http404
+from django.utils import simplejson as json
 
 from dockitresource.resources import DocumentResource
 from dockitresource.tests.books_models import Book, Publisher, Author, Address
+
+from mock import MagicMock
 
 ##resource defs##
 
@@ -44,14 +47,36 @@ class BookTestCase(ResourceTestCase):
         publisher.save()
 
         book = Book(title='Of Mice and Men', publisher=publisher)
-        book.authors.append(author)
+        book.authors.add(author)
         book.save()
         book.tags.append('historical')
         book.save()
     
+    def get_adaptor(self):
+        from hyperadmin.mediatypes.json import JSON
+        self.api_request = self.get_api_request()
+        adaptor = JSON(self.api_request)
+        adaptor.detect_redirect = MagicMock()
+        adaptor.detect_redirect.return_value = False
+        return adaptor
+    
     def register_resource(self):
         self.site.register(Book, BookResource, app_name='books')
         return self.site.registry[Book]
+    
+    def test_item_serialize(self):
+        instance = Book.objects.all()[0]
+        adaptor = self.get_adaptor()
+        
+        endpoint = self.resource.endpoints['detail']
+        endpoint = endpoint.fork(api_request=self.api_request)
+        endpoint.state.item = item = endpoint.get_resource_item(instance)
+        link = item.get_link()
+        state = endpoint.state
+        
+        response = adaptor.serialize(content_type='application/json', link=link, state=state)
+        data = json.loads(response.content)
+        assert data, str(data)
     
     def test_get_list(self):
         api_request = self.get_api_request()
@@ -156,7 +181,7 @@ class PublisherTestCase(ResourceTestCase):
         publisher.save()
 
         book = Book(title='Of Mice and Men', publisher=publisher)
-        book.authors.append(author)
+        book.authors.add(author)
         book.save()
         book.tags.append('historical')
         book.save()

@@ -1,6 +1,6 @@
 from dockit.schema import Document, Schema, ModelReferenceField, \
     TextField, DictField, SchemaField, FileField, IntegerField, \
-    ReferenceField, ListField, GenericSchemaField, CharField, DateField
+    ReferenceField, ListField, GenericSchemaField, CharField, DateField, DocumentSetField
 
 from django.contrib.auth.models import User
 
@@ -39,7 +39,7 @@ class Book(Document):
     cover_image = FileField(upload_to='book-images', blank=True, null=True)
     year = IntegerField()
     publisher = ReferenceField(Publisher)
-    authors = ListField(ReferenceField(Author), db_index=True)
+    authors = DocumentSetField(Author, db_index=True)
     tags = ListField(TextField(), db_index=True)
     
     def __unicode__(self):
