@@ -452,12 +452,12 @@ class DocumentResource(BaseDocumentResource):
         )
         return urlpatterns
     
-    def has_add_permission(self):
+    def has_create_permission(self):
         opts = self.opts
         user = self.api_request.user
         return user.has_perm('dockit.'+ opts.get_add_permission())
     
-    def has_change_permission(self, item=None):
+    def has_update_permission(self, item=None):
         opts = self.opts
         user = self.api_request.user
         if item:
