@@ -139,6 +139,10 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     rel_name = 'dotpath'
     #TODO dotpath index
     
+    @property
+    def dotpath_resource(self):
+        return self
+    
     def get_base_url_name(self):
         return '%s%s_' % (self.parent.get_base_url_name(), 'dotpath')
     
