@@ -26,7 +26,7 @@ class DotpathStateMixin(object):
                 traverser = DotPathTraverser(parent_path)
                 traverser.resolve_for_instance(obj)
                 info = traverser.resolved_paths
-                subschema = info[2]['field'].schema
+                subschema = info[-1]['field'].schema
                 fields = subschema._meta.fields
                 
                 field = obj.dot_notation_to_field(parent_path)

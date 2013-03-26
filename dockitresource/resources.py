@@ -190,7 +190,9 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
         return super(DotpathResource, self).get_create_link(form_kwargs, **kwargs)
     
     def get_item_prompt(self, item):
-        return unicode(item.subobject)
+        if item.subobject is not None:
+            return unicode(item.subobject)
+        return self.get_prompt()
     
     def get_resource_items(self):
         dotpath = self.state.dotpath
