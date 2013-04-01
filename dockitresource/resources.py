@@ -201,7 +201,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
             instances = self.state.subobject
             if self.state.get('resource_class', None) == 'change_list':
                 return [self.get_list_resource_item(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
-            return [self.get_resource_item(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
+            return [self.get_resource_subitem(item.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
         else:
             if self.state.get('resource_class', None) == 'change_list':
                 return [self.get_list_resource_item(item.instance, dotpath=dotpath)]

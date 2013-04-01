@@ -64,7 +64,7 @@ class DotpathDeleteLinkPrototype(DeleteLinkPrototype):
         instance = self.state.parent.instance
         instance.dot_notation_set_value(self.state.dotpath, UnSet)
         instance.save()
-        return self.on_success()
+        return self.on_success(self.state.subitem)
 
 class DotpathMixin(IndexMixin):
     state_class = DotpathEndpointState

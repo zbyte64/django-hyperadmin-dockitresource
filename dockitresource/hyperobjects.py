@@ -33,10 +33,11 @@ class DotpathNamespace(Namespace):
     pass
 
 class DotpathResourceSubitem(ResourceItem):
-    def __init__(self, dotpath=None, **kwargs):
+    def __init__(self, dotpath=None, subobject=None, **kwargs):
         super(DotpathResourceSubitem, self).__init__(**kwargs)
         assert dotpath
         self.dotpath = dotpath
+        self._subobject = subobject
     
     def get_form_class(self):
         if self.form_class is not None:
@@ -45,16 +46,20 @@ class DotpathResourceSubitem(ResourceItem):
     
     @property
     def subobject(self):
-        if self.dotpath:
+        if not self._subobject:
             val = self.instance
-            return val.dot_notation_to_value(self.dotpath)
-        return self.instance
+            self._subobject = val.dot_notation_to_value(self.dotpath)
+        return self._subobject
 
 class DotpathResourceItem(DotpathResourceSubitem):
     def get_resource_items(self):
         if self.state.is_sublisting:
             instances = self.subobject
             dotpath = self.dotpath
-            return [self.endpoint.get_resource_subitem(self.instance, dotpath='%s.%s' % (dotpath, i)) for i in range(len(instances))]
+            ret = list()
+            for index, subobject in enumerate(instances):
+                subdotpath = '%s.%s' % (dotpath, index)
+                ret.append(self.endpoint.get_resource_subitem(self.instance, dotpath=subdotpath, subobject=subobject))
+            return ret
         return [self.endpoint.get_resource_subitem(self.instance, dotpath=self.dotpath)]
 
