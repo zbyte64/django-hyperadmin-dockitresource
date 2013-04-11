@@ -4,6 +4,7 @@ from hyperadmin.resources.crud import CRUDResource
 from hyperadmin.links import Link
 
 from dockit import forms
+from dockit.datataps import DocumentDataTap
 
 from dockitresource.hyperobjects import DotpathNamespace, DotpathResourceItem, DotpathListResourceItem, DotpathResourceSubitem
 from dockitresource.states import DotpathEndpointState
@@ -132,6 +133,20 @@ class DocumentResourceMixin(object):
         SelectSchemaForm.base_fields[key] = djangoforms.ChoiceField(choices=typed_field.get_schema_choices())
         return SelectSchemaForm
 
+    def get_native_datatap_instream_from_items(self, items):
+        '''
+        Makes an instream of model instances
+        '''
+        return [item.instance for item in items]
+
+    def get_native_datatap(self, instream=None, **kwargs):
+        '''
+        Returns a ModelDataTap suited for this resource
+        '''
+        if instream is None:
+            instream = [self.resource_adaptor]
+        return DocumentDataTap(instream, **kwargs)
+
 
 class DotpathResource(DocumentResourceMixin, CRUDResource):
     resource_item_class = DotpathResourceItem
@@ -163,7 +178,7 @@ class DotpathResource(DocumentResourceMixin, CRUDResource):
     #    return StorageQuery(self.storage)
 
     def get_index_endpoint(self):
-        eps = self.endpoints
+        #eps = self.endpoints
         return self.endpoints['detail']
 
     def get_absolute_url(self):
